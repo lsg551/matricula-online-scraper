@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "matricula-online-scraper"
+version = "0.1.0"
+description = "Command Line Interface tool for scraping Matricula Online https://data.matricula-online.eu."
+authors = ["Luis Schulte <https://github.com/lsg551>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.scripts]
+matricula-online-scraper = "matricula_online_scraper.main:app"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+scrapy = "^2.11.1"
+typer = { extras = ["all"], version = "^0.12.3" }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
