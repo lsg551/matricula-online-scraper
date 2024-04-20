@@ -38,9 +38,13 @@ Fetch all available locations and save them to a `.jsonl` file:
 $ matricula-online-scraper fetch locations ./output.jsonl
 ```
 
-This will create a file called `output.jsonl` in your current directory with all available
-
 ### Example 2:
+
+Fetch all available register from one parish in Münster, Germany and save them to a `.jsonl` file:
+
+```console
+$ matricula-online-scraper fetch parish ./output.jsonl --urls https://data.matricula-online.eu/en/deutschland/muenster/muenster-st-martini/
+```
 
 ## License & Contributing
 
