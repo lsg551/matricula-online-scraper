@@ -10,6 +10,8 @@ class URL:
     """Custom typer CLI argument parser for URLs."""
 
     def __init__(self, value: str):
+        if URL.is_valid(value) is False:
+            raise ValueError(f"Invalid URL: {value}")
         self.value = value
 
     def __str__(self):
@@ -26,10 +28,3 @@ class URL:
             return all([result.scheme, result.netloc])
         except AttributeError:
             return False
-
-    @staticmethod
-    def from_string(value: str) -> URL:
-        """Create a URL object from a string."""
-        if not URL.is_valid(value):
-            raise ValueError(f"Invalid URL: {value}")
-        return URL(value)

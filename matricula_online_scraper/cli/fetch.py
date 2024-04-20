@@ -95,8 +95,7 @@ def location(
                 "FEEDS": {str(output_file.absolute()): {"format": "jsonlines"}},
                 "LOG_LEVEL": log_level,
                 "LOG_ENABLED": not silent,
-            }
-            settings=Settings()
+            },
         )
 
         process.crawl(  # type: ignore
@@ -123,7 +122,7 @@ def parish(
     output_file: Annotated[Path, typer.Argument()],
     urls: Annotated[
         List[URL],
-        typer.Option(parser=URL.from_string, help="One ore more URLs to scrape."),
+        typer.Option(parser=URL, help="One ore more URLs to scrape."),
     ],
     log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
     silent: SilentOption = DEFAULT_SCRAPER_SILENT,
