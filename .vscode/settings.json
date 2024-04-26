@@ -1,0 +1,5 @@
+{
+    // disable strict type checking
+    // bc scrapy has no inline nor type stubs, this is easier
+    "python.analysis.typeCheckingMode": "standard",
+}
