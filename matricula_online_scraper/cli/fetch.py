@@ -122,7 +122,7 @@ def parish(
     output_file: Annotated[Path, typer.Argument()],
     urls: Annotated[
         List[URL],
-        typer.Option(parser=URL, help="One ore more URLs to scrape."),
+        typer.Option("--url", "-u", parser=URL, help="One ore more URLs to scrape."),
     ],
     log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
     silent: SilentOption = DEFAULT_SCRAPER_SILENT,
