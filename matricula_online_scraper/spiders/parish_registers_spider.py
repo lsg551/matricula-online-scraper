@@ -2,7 +2,7 @@
 Scrapy spider to scrape parish registers from a specific location from Matricula Online.
 """
 
-from typing import List
+from typing import Dict, List
 import scrapy  # pylint: disable=import-error # type: ignore
 from urllib.parse import urlencode, urlparse, parse_qs, urljoin, urlunparse
 
@@ -35,33 +35,62 @@ class ParishRegistersSpider(scrapy.Spider):
 
     def parse(self, response):
         items = response.css("div.table-responsive tr")
-        items.pop(0)  # Remove the header row
-        if len(items) % 2 != 0:
-            raise ValueError("Unexpected number of rows in the table.")
-        parish_registers = [items[i : i + 2] for i in range(0, len(items), 2)]
 
-        # BUG: sometimes no result box is available. instead a url to an external website is provided
+        # in some cases a parish's page is left blank intentionally
+        # sometimes an external link is provided instead ... check if the page has a table
+        if items is None or len(items) == 0:
+            # this element usually contains another element with a link to an external website
+            description_container = response.css("div.description")
+            urls = description_container.css("a::attr('href')").getall()
+            urls = list(set(urls))  # remove duplicates
 
-        for main_row, details_row in parish_registers:
+            # completly blank page
+            if urls is None or len(urls) <= 0:
+                self.logger.debug(f"No data found for {response.url}")
+                yield
 
-            name = main_row.css("tr td:nth-child(3)::text").get()
-            href = main_row.css("tr td:nth-child(1) a:nth-child(1)::attr('href')").get()
-            url = None if href is None or href == "" else urljoin(HOST, href)
-            date_range_str = main_row.css("tr td:nth-child(4)::text").get()
-            accession_number = main_row.css("tr td:nth-child(2)::text").get()
-            type = details_row.css("tr td dl dd:nth-of-type(1)::text").get()
-            # TODO: select 4-last and put it here
-            comment = details_row.css("tr td dl dd:nth-of-type(4)::text").get()
+            # one or many links found
+            if len(urls) >= 1:
+                for url in urls:
+                    yield {
+                        "external_url": url,
+                    }
 
-            yield {
-                "name": name,
-                "url": url,
-                "accession_number": accession_number,
-                "date": date_range_str,
-                "type": type,
-                # BUG: inconsistent, not always present or other type of information
-                "comment": comment.strip() if comment is not None else None,
-            }
+        # page has a table with parish registers
+        else:
+            items.pop(0)  # Remove the header row
+            if len(items) % 2 != 0:
+                raise ValueError("Unexpected number of rows in the table.")
+            # most two adjacent rows are the main row and the details row
+            parish_registers = [items[i : i + 2] for i in range(0, len(items), 2)]
+
+            for main_row, details_row in parish_registers:
+                # from consistent main row
+                name = main_row.css("tr td:nth-child(3)::text").get()
+                href = main_row.css(
+                    "tr td:nth-child(1) a:nth-child(1)::attr('href')"
+                ).get()
+                url = None if href is None or href == "" else urljoin(HOST, href)
+                accession_number = main_row.css("tr td:nth-child(2)::text").get()
+                date_range_str = main_row.css("tr td:nth-child(4)::text").get()
+
+                # from inconsistent expandable details row
+                # a <dl> with <dt>s as keys and <dd>s as values
+                details: Dict[str, str] = {
+                    dt.strip().lower().replace(" ", "_"): dd.strip()
+                    for dt, dd in zip(
+                        details_row.css("tr td dl dt ::text").getall(),
+                        details_row.css("tr td dl dd ::text").getall(),
+                    )
+                }
+
+                yield {
+                    "name": name,
+                    "url": url,
+                    "accession_number": accession_number,
+                    "date": date_range_str,
+                    **details,
+                }
 
         next_page = response.css(
             "ul.pagination li.page-item.active + li.page-item a.page-link::attr('href')"
