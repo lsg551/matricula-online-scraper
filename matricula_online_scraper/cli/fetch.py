@@ -12,21 +12,28 @@ from matricula_online_scraper.spiders.parish_registers_spider import (
     ParishRegistersSpider,
 )
 from .utils import URL
+from .common import (
+    DEFAULT_SCRAPER_LOG_LEVEL,
+    DEFAULT_SCRAPER_SILENT,
+    DEFAULT_OUTPUT_FILE_FORMAT,
+    DEFAUL_APPEND,
+    LogLevelOption,
+    OutputFileNameArgument,
+    OutputFileFormatOption,
+    SilentOption,
+    AppendOption,
+    file_format_to_scrapy,
+)
+
 
 app = typer.Typer()
-
-SilentOption = Annotated[
-    bool, typer.Option(help="Disable all output from the scraper.")
-]
-DEFAULT_SCRAPER_SILENT = True
-
-LogLevelOption = Annotated[str, typer.Option(help="Set the log level for the crawler.")]
-DEFAULT_SCRAPER_LOG_LEVEL = "ERROR"
 
 
 @app.command()
 def location(
-    output_file: Annotated[Path, typer.Argument()],
+    output_file_name: OutputFileNameArgument = Path("matricula_locations"),
+    output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
+    append: AppendOption = DEFAUL_APPEND,
     place: Annotated[
         Optional[str], typer.Option(help="Full text search for a location.")
     ] = None,
@@ -58,22 +65,15 @@ def location(
     >>> matricula-online-scraper fetch location ./output.jsonl
     """
 
-    # user specified only a filename, not a complete path
-    if output_file.suffix == "":
-        print(f"[yellow]Output file has no type suffix: {output_file}[/yellow]")
-        output_file = output_file.with_suffix(".jsonl")
-        print(
-            f"Adding '.jsonl' suffix to the output file. New path: {output_file.absolute()}"
-        )
-
-    # atm only jsonl is supported
-    if output_file.suffix != ".jsonl":
-        print(f"[red]Output file type must be '.jsonl': {output_file}[/red]")
-        raise typer.Exit()
+    output_path_str = str(output_file_name.absolute()) + "." + output_file_format
+    output_path = Path(output_path_str)
 
     # check if output file already exists
-    if output_file.exists():
-        print(f"[red]Output file already exists: {output_file.absolute()}[/red]")
+    if output_path.exists() and not append:
+        print(
+            f"[red]Output file already exists: {output_path.absolute()}."
+            " Use the option '--append' if you want to append to the file.[/red]"
+        )
         raise typer.Exit()
 
     # all search parameters are unused => fetching everything takes some time
@@ -92,7 +92,11 @@ def location(
     try:
         process = crawler.CrawlerProcess(
             settings={
-                "FEEDS": {str(output_file.absolute()): {"format": "jsonlines"}},
+                "FEEDS": {
+                    str(output_path.absolute()): {
+                        "format": file_format_to_scrapy(output_file_format)
+                    }
+                },
                 "LOG_LEVEL": log_level,
                 "LOG_ENABLED": not silent,
             },
@@ -109,7 +113,7 @@ def location(
 
         print(
             "[green]Scraping completed successfully. "
-            f"Output saved to: {output_file.absolute()}[/green]"
+            f"Output saved to: {output_path.absolute()}[/green]"
         )
 
     except Exception as exception:
@@ -119,11 +123,13 @@ def location(
 
 @app.command()
 def parish(
-    output_file: Annotated[Path, typer.Argument()],
     urls: Annotated[
         List[URL],
         typer.Option("--url", "-u", parser=URL, help="One ore more URLs to scrape."),
     ],
+    output_file_name: OutputFileNameArgument = Path("matricula_parishes"),
+    output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
+    append: AppendOption = DEFAUL_APPEND,
     log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
     silent: SilentOption = DEFAULT_SCRAPER_SILENT,
 ):
@@ -131,22 +137,15 @@ def parish(
     Scrape a parish register
     """
 
-    # user specified only a filename, not a complete path
-    if output_file.suffix == "":
-        print(f"[yellow]Output file has no type suffix: {output_file}[/yellow]")
-        output_file = output_file.with_suffix(".jsonl")
-        print(
-            f"Adding '.jsonl' suffix to the output file. New path: {output_file.absolute()}"
-        )
-
-    # atm only jsonl is supported
-    if output_file.suffix != ".jsonl":
-        print(f"[red]Output file type must be '.jsonl': {output_file}[/red]")
-        raise typer.Exit()
+    output_path_str = str(output_file_name.absolute()) + "." + output_file_format
+    output_path = Path(output_path_str)
 
     # check if output file already exists
-    if output_file.exists():
-        print(f"[red]Output file already exists: {output_file.absolute()}[/red]")
+    if output_path.exists() and not append:
+        print(
+            f"[red]Output file already exists: {output_path.absolute()}."
+            " Use the option '--append' if you want to append to the file.[/red]"
+        )
         raise typer.Exit()
 
     if len(urls) <= 0:
@@ -156,7 +155,11 @@ def parish(
     try:
         process = crawler.CrawlerProcess(
             settings={
-                "FEEDS": {str(output_file.absolute()): {"format": "jsonlines"}},
+                "FEEDS": {
+                    str(output_path.absolute()): {
+                        "format": file_format_to_scrapy(output_file_format)
+                    }
+                },
                 "LOG_LEVEL": log_level,
                 "LOG_ENABLED": not silent,
             }
@@ -167,7 +170,7 @@ def parish(
 
         print(
             "[green]Scraping completed successfully. "
-            f"Output saved to: {output_file.absolute()}[/green]"
+            f"Output saved to: {output_path.absolute()}[/green]"
         )
 
     except Exception as exception:
