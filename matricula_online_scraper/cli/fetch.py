@@ -50,6 +50,13 @@ def location(
         Optional[Tuple[int, int]],
         typer.Option(help="Filter by date of the parish registers."),
     ] = None,
+    exclude_coordinates: Annotated[
+        bool,
+        typer.Option(
+            "--exclude-coordinates/",
+            help="Coordinates of a parish will be included by default. Using this option will exclude coordinates from the output and speed up the scraping process.",
+        ),
+    ] = False,
     log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
     silent: SilentOption = DEFAULT_SCRAPER_SILENT,
 ):
@@ -108,6 +115,7 @@ def location(
             diocese=diocese,
             date_filter=date_filter,
             date_range=date_range or (0, 9999),
+            include_coordinates=not exclude_coordinates,
         )
         process.start()
 

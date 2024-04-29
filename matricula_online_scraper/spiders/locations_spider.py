@@ -5,6 +5,7 @@ Scrapy spider to scrape locations from Matricula Online.
 from urllib.parse import urljoin
 from typing import Tuple, TypedDict
 import scrapy  # pylint: disable=import-error # type: ignore
+from .utils import extract_coordinates
 
 HOST = "https://data.matricula-online.eu"
 SCRAPE_ROUTE = "https://data.matricula-online.eu/en/suchen/"
@@ -42,6 +43,7 @@ class LocationsSpider(scrapy.Spider):
         diocese: int | None,
         date_filter: bool,
         date_range: Tuple[int, int],
+        include_coordinates: bool,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -51,6 +53,8 @@ class LocationsSpider(scrapy.Spider):
         self.diocese = diocese
         self.date_filter = date_filter
         self.date_range = date_range
+
+        self.include_coordinates = include_coordinates
 
         # start URL to begin iteration from
         self.start_urls = [
@@ -62,29 +66,36 @@ class LocationsSpider(scrapy.Spider):
                 + ("&date_filter=on" if self.date_filter else "")
             )
         ]
-        
+
         self.logger.debug(f"Start urls: {self.start_urls}")
 
     def parse(self, response):
         # iterate over each location in the result table
         for location in response.css("div.results a.list-group-item"):
-
             # extract the location information
             country_region_str = location.css(
                 "a.list-group-item span.text-muted::text"
             ).get()
             # and split into country and region
             country, region = [item.strip() for item in country_region_str.split("•")]
+            url = urljoin(HOST, location.css("a.list-group-item::attr('href')").get())
+            # BUG: if 'place' is used, the text might be highlighted and <mark> inside
+            name = location.css("a.list-group-item span.text-primary::text").get()
 
-            # export information
-            yield {
+            export = {
                 "country": country,
                 "region": region,
-                "name": location.css("a.list-group-item span.text-primary::text").get(), # BUG: if 'place' is used, the text might be highlighted and <mark> inside
-                "url": urljoin(
-                    HOST, location.css("a.list-group-item::attr('href')").get()
-                ),
+                "name": name,
+                "url": url,
             }
+
+            if self.include_coordinates:
+                yield scrapy.Request(
+                    url=url, callback=self.parse_coordinates, meta={"data": export}
+                )
+            else:
+                # export information
+                yield export
 
         # build next URL to scrape, retrieve from pagination element if available
         next_page = response.css(
@@ -94,3 +105,18 @@ class LocationsSpider(scrapy.Spider):
         # stop iteration if no next page is available
         if next_page is not None:
             yield response.follow(urljoin(SCRAPE_ROUTE, next_page), self.parse)
+
+    def parse_coordinates(self, response):
+        data = response.meta["data"]
+        # coordinates are inside a string inside a javascript script tag
+        # but they are not directly accessible, so we have to extract them
+        # through each parish's dedicated page
+        for script in response.css("html body script:not([src])").getall():
+            if "var feature = wktread.readFeature('POINT (" in script:
+                coordinates = extract_coordinates(script)
+                if coordinates:
+                    data["longitude"] = coordinates[0]
+                    data["latitude"] = coordinates[1]
+                    break
+
+        yield data
