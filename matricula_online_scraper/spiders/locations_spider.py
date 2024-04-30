@@ -79,8 +79,12 @@ class LocationsSpider(scrapy.Spider):
             # and split into country and region
             country, region = [item.strip() for item in country_region_str.split("•")]
             url = urljoin(HOST, location.css("a.list-group-item::attr('href')").get())
-            # BUG: if 'place' is used, the text might be highlighted and <mark> inside
-            name = location.css("a.list-group-item span.text-primary::text").get()
+            # If search parameters like 'place' are used, the DOM is changed and a <mark>
+            # is inserted to highlight text. This gets all text from childnodes and joins them.
+            name_parts = location.css(
+                "a.list-group-item span.text-primary ::text"
+            ).getall()
+            name = "".join(name_parts).strip()
 
             export = {
                 "country": country,
