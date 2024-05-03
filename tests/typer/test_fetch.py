@@ -32,7 +32,6 @@ def test_fetch_command_help():
 
 
 def test_fetch_location_command():
-
     # this should error bc an argument is missing
     result = runner.invoke(app, ["fetch", "location"])
 
