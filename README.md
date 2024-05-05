@@ -4,6 +4,10 @@
 ![GitHub License](https://img.shields.io/github/license/lsg551/matricula-online-scraper?logo=pypi)
 ![PyPI - Version](https://img.shields.io/pypi/v/matricula-online-scraper?logo=pypi)
 
+[Download latest cached parishes (CSV)](https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz)
+
+![GitHub last commit (branch)](https://img.shields.io/github/last-commit/lsg551/matricula-online-scraper/cache%2Fparishes?path=parishes.csv.gz&label=last%20caching&cacheSeconds=43200)
+
 > :warning: This tool is still under development and is NOT yet feature-complete. Expect breaking changes and bugs. Please report any issues.
 
 [Matricula Online](https://data.matricula-online.eu/) is a website that hosts parish registers from various regions across Europe. This CLI tool allows you to fetch data from it and save the data to a file.
