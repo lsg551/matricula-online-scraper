@@ -1,0 +1,41 @@
+# This workflow runs the scraper once a week within GitHub's Workflow .
+# It scrapes the parishes and pushes the compressed file into the branch /cache/parishes
+
+name: Cache Parishes
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1" # every Monday 03:00 UTC am
+env:
+  # TEMPORARY: use this version as long as <= 1.x to prevent breaking anything
+  MOS_VERSION: v0.4.1 # matricula-online-scraper version
+
+jobs:
+  cache-parishes:
+    name: Cache Parishes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cache/parishes
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+          check-latest: true
+      - run: python -m pip install --upgrade pip
+      # Install this tool from pypi instead of building it from source
+      - name: Install from PyPi
+        run: pip install matricula-online-scraper==$MOS_VERSION
+      - name: Scrape parishes
+        run: matricula-online-scraper fetch location "parishes" -e csv # -> 'parishes.csv'
+      - name: Zip file
+        run: gzip parishes.csv # -> 'parishes.csv.gz'
+      - name: Push to branch 'cache/parishes'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add parishes.csv.gz
+          git commit -m "cache parishes"
+          git push
