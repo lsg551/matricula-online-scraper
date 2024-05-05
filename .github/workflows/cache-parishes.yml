@@ -31,6 +31,7 @@ jobs:
         run: pip install matricula-online-scraper==$MOS_VERSION
       - name: Scrape parishes
         run: matricula-online-scraper fetch location "parishes" -e csv # -> 'parishes.csv'
+      - run: rm -f parishes.csv.gz
       - name: Zip file
         run: gzip parishes.csv # -> 'parishes.csv.gz'
       - name: Push to branch 'cache/parishes'
