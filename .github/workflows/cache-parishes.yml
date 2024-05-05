@@ -19,6 +19,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: cache/parishes
+          ssh-key: ${{secrets.CACHE_WORKFLOW_DEPLOY_KEY}}
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
