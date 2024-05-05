@@ -12,7 +12,7 @@
 
 Our GitHub Workflow automatically scrapes a list with all parishes once a week and pushes to [`cache/parishes`](https://github.com/lsg551/matricula-online-scraper/tree/cache/parishes). Download [`parishes.csv`](https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz) ⚡️
 
-[![Cache Parishes](https://github.com/lsg551/matricula-online-scraper/actions/workflows/blank.yml/cache-parishes.yml)](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml)
+[![Cache Parishes](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml/badge.svg)](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml)
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/lsg551/matricula-online-scraper/cache%2Fparishes?path=parishes.csv.gz&label=last%20caching&cacheSeconds=43200)
 
 ---
