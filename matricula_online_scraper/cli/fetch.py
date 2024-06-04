@@ -8,6 +8,7 @@ import typer
 from scrapy import crawler  # pylint: disable=import-error # type: ignore
 from rich import print  # pylint: disable=redefined-builtin
 from matricula_online_scraper.spiders.locations_spider import LocationsSpider
+from matricula_online_scraper.spiders.newsfeed_spider import NewsfeedSpider
 from matricula_online_scraper.spiders.parish_registers_spider import (
     ParishRegistersSpider,
 )
@@ -135,7 +136,7 @@ def parish(
         List[URL],
         typer.Option("--url", "-u", parser=URL, help="One ore more URLs to scrape."),
     ],
-    output_file_name: OutputFileNameArgument = Path("matricula_parishes"),
+    output_file_name: OutputFileNameArgument = Path("matricula-newsfeed"),
     output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
     append: AppendOption = DEFAUL_APPEND,
     log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
@@ -174,6 +175,72 @@ def parish(
         )
 
         process.crawl(ParishRegistersSpider, start_urls=[str(url) for url in urls])  # type: ignore
+        process.start()
+
+        print(
+            "[green]Scraping completed successfully. "
+            f"Output saved to: {output_path.absolute()}[/green]"
+        )
+
+    except Exception as exception:
+        print("[red]An unknown error occurred while scraping.[/red]")
+        raise typer.Exit(code=1) from exception
+
+
+@app.command()
+def newsfeed(
+    output_file_name: OutputFileNameArgument = Path("matricula_parishes"),
+    output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
+    log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
+    silent: SilentOption = DEFAULT_SCRAPER_SILENT,
+    # options
+    last_n_days: Annotated[
+        Optional[int],
+        typer.Option(
+            "--last-n-days",
+            "-n",
+            help="Scrape news from the last n days (including today).",
+        ),
+    ] = None,
+    limit: Annotated[
+        Optional[int],
+        typer.Option(
+            help=(
+                "Limit the number of max. news articles to scrape"
+                "(note that this is a upper bound, it might be less depending on other parameters)."
+            )
+        ),
+    ] = 100,
+):
+    """
+    Scrape Matricula Online's Newsfeed.
+    """
+
+    output_path_str = str(output_file_name.absolute()) + "." + output_file_format
+    output_path = Path(output_path_str)
+
+    # check if output file already exists
+    if output_path.exists():
+        print(
+            f"[red]Output file already exists: {output_path.absolute()}."
+            " Use the option '--append' if you want to append to the file.[/red]"
+        )
+        raise typer.Exit()
+
+    try:
+        process = crawler.CrawlerProcess(
+            settings={
+                "FEEDS": {
+                    str(output_path.absolute()): {
+                        "format": file_format_to_scrapy(output_file_format),
+                    }
+                },
+                "LOG_LEVEL": log_level,
+                "LOG_ENABLED": not silent,
+            }
+        )
+
+        process.crawl(NewsfeedSpider, limit=limit, last_n_days=last_n_days)
         process.start()
 
         print(
