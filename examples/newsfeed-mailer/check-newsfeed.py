@@ -17,7 +17,12 @@ HOW IT WORKS
 
 If all arguments were provided correctly, this script will:
 
-[...]
+1. Scrapes newsfeed data from Matricula's website.
+`--schedule` in hours determines the last n days to fetch (e.g. 24: 48/24=2 => last 2 days will be fetched).
+
+2. It will look for substrings of `keywords` in the headlines and previews of the scraped articles.
+
+3. If matches were found, a mail will be sent to the user with the matches.
 
 EXAMPLE
 =======
@@ -45,10 +50,10 @@ VERSION = "0.1.0"
 
 # -------------------- logging --------------------
 
-
 JOB_ID = uuid.uuid4()
 JOB_DATE = datetime.now()
-LOG_FILE = Path("matricula-newsfeed-mailer.log")
+APP_DIR = Path("~/.matricula-online-scraper/").expanduser().absolute()
+LOG_FILE = Path(APP_DIR, "matricula-newsfeed-mailer.log")
 
 logger = logging.getLogger(__name__)
 logger_extra = {
@@ -56,7 +61,9 @@ logger_extra = {
     "bot_version": VERSION,
 }
 logging.basicConfig(
-    filename=LOG_FILE,
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+    ],
     encoding="utf-8",
     level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s (%(job_id)s @ v%(bot_version)s) : %(message)s",
@@ -214,7 +221,7 @@ def parse_args() -> Options:
 # -------------------- Data processing / CSV parsing --------------------
 
 # folder where scraped data is stored
-DATA_STORE = Path("~/matricula-newsfeed-scraper").expanduser()
+DATA_STORE = Path(APP_DIR, "scraper-data")
 
 
 def fetch_newsfeed(*, last_n_days: int) -> Path:
@@ -436,6 +443,10 @@ if __name__ == "__main__":
     logger.debug(
         f"Found {len(matches)} matches for keywords {keywords} in: {file.absolute()}"
     )
+
+    if len(matches) == 0:
+        logger.debug("No matches found. Aborting.")
+        exit(0)
 
     # build message
     # history = History(LOG_FILE)
