@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "matricula-online-scraper"
-version = "0.4.2"
+version = "0.5.0"
 description = "Command Line Interface tool for scraping Matricula Online https://data.matricula-online.eu."
 repository = "https://github.com/lsg551/matricula-online-scraper"
 authors = ["Luis Schulte"]
