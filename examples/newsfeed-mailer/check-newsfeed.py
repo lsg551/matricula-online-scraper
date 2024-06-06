@@ -5,30 +5,28 @@ This script uses `matricula-online-scraper fetch newsfeed` to check
 Matricula's recent newsfeed articles against a specified set of keywords.
 A user will be notified via email if match was found.
 
-* Run `./check-newsfeed.py --help` for more information.
-
 PREREQUISITES
 =============
 
 * Make sure `matricula-online-scraper` is installed and available.
 
+USAGE
+=====
+
+* If you want to run this script periodically, e.g. each day,
+set the scrape period to 2 days for deduplication. This will prevent
+missing matches due to scrape period overlaps from the last job.
+
+* Run `./check-newsfeed.py --help` for more information.
+
 HOW IT WORKS
 ============
 
-If all arguments were provided correctly, this script will:
-
-1. Scrapes newsfeed data from Matricula's website.
-`--schedule` in hours determines the last n days to fetch (e.g. 24: 48/24=2 => last 2 days will be fetched).
-
-2. It will look for substrings of `keywords` in the headlines and previews of the scraped articles.
-
+1. Scrapes newsfeed articles from Matricula's website,
+finds matches and rewrites those matches to a data file.
+2. Remove potential duplicates (deduplication) in the scraped data
+due to scrape period overlaps from the last job's data file.
 3. If matches were found, a mail will be sent to the user with the matches.
-
-EXAMPLE
-=======
-
-* See this example's README for details.
-
 """
 
 from pathlib import Path
@@ -43,17 +41,32 @@ import uuid
 import ssl
 import csv
 import copy
+import os
 
-# please update update this version according to semver for user feature semantics
+# please update the version according to semver for user feature semantics
+# strictly follow the breaking change rules: bump major version
+# otherwise unexpected behaviour may occur
 VERSION = "0.1.0"
+MAJOR_VERSION = VERSION.split(".")[0]
+
+JOB_ID = uuid.uuid4()
+JOB_START = datetime.now()
+
+APP_DIR = Path("~/.matricula-online-scraper/").expanduser().absolute()
+LOG_FILE = Path(APP_DIR, f"matricula-newsfeed-mailer.v{MAJOR_VERSION}.log")
+DATA_STORE = Path(APP_DIR, "scraper-data")  # folder where scraped data is stored
+DATA_FILE = Path(DATA_STORE, f"job_{JOB_ID}_v{VERSION.replace(".", "_")}.csv")
+
+
+TIMESTAMP_FMT = "%d.%m.%Y %H:%M:%S"
+
+# create app dir if non existent
+if not APP_DIR.exists():
+    APP_DIR.mkdir(parents=True)
 
 
 # -------------------- logging --------------------
 
-JOB_ID = uuid.uuid4()
-JOB_DATE = datetime.now()
-APP_DIR = Path("~/.matricula-online-scraper/").expanduser().absolute()
-LOG_FILE = Path(APP_DIR, "matricula-newsfeed-mailer.log")
 
 logger = logging.getLogger(__name__)
 logger_extra = {
@@ -67,7 +80,7 @@ logging.basicConfig(
     encoding="utf-8",
     level=logging.DEBUG,
     format="[%(asctime)s] %(levelname)s (%(job_id)s @ v%(bot_version)s) : %(message)s",
-    datefmt="%d.%m.%Y %H:%M:%S",
+    datefmt=TIMESTAMP_FMT,
 )
 logger_factory = logging.getLogRecordFactory()
 
@@ -82,43 +95,30 @@ def record_factory(*args, **kwargs):
 logging.setLogRecordFactory(record_factory)
 
 
-def parse_log(path: Path) -> list[str]:
-    return []
+class LogLine(TypedDict):
+    timestamp: datetime
+    level: str
+    job_id: uuid.UUID
+    bot_version: str
+    message: str
 
 
-class History:
-    """Scraping / Job history.
-    Useful for debugging.
-    """
-
-    def __init__(self, log: Path):
-        pass
-
-
-# -------------------- matricula-online-scraper executable --------------------
-
-
-EXECUTABLE = shutil.which("matricula-online-scraper")
-if not EXECUTABLE:
-    logger.error("Could not find executable 'matricula-online-scraper'.")
-    raise FileNotFoundError(
-        "matricula-online-scraper executable not found. "
-        "Please make sure it is installed and available in your PATH."
-    )
-
-
-SCRAPER_VERSION = (
-    subprocess.run([EXECUTABLE, "--version"], encoding="utf-8", capture_output=True)
-    .stdout.strip()
-    .replace("\n", "")
-)
-if not SCRAPER_VERSION:
-    logger.error("Could not get version of executable 'matricula-online-scraper'.")
-    raise ValueError("Could not get scraper version.")
-
-logger.debug(
-    f"Using matricula-online-scraper (v{SCRAPER_VERSION}) executable at: {EXECUTABLE}"
-)
+def parse_log_line(line: str) -> LogLine:
+    parts = line.split(" ")
+    date_str = parts[0][1:]  # remove leading '['
+    time_str = parts[1][: len(parts[1]) - 1]  # remove trailing ']'
+    timestamp = datetime.strptime(f"{date_str} {time_str}", TIMESTAMP_FMT)
+    level = parts[2]
+    job_id = uuid.UUID(parts[3][1:])  # remove leading '('
+    bot_version = parts[5][: len(parts[5]) - 1]  # remove trailing ')'
+    message = " ".join(parts[7:])
+    return {
+        "timestamp": timestamp,
+        "level": level,
+        "job_id": job_id,
+        "bot_version": bot_version,
+        "message": message,
+    }
 
 
 # -------------------- parse args --------------------
@@ -130,8 +130,7 @@ class Options(TypedDict):
     smtp_server: str
     smtp_port: int
     receiver_mail: str
-    schedule: int
-    """(in hours) effectively determines the last n days to fetch."""
+    scrape_period: int
     keywords: list[str]
 
 
@@ -144,8 +143,9 @@ def print_args(options: Options):
 def parse_args() -> Options:
     parser = argparse.ArgumentParser(
         description=(
-            "This script scrapes Matricula's newsfeed, "
-            "checks against keywords and notifies a user if matches were found."
+            "This script uses `matricula-online-scraper fetch newsfeed` to check"
+            " Matricula's recent newsfeed articles against a specified set of keywords."
+            " A user will be notified via email if match was found."
         )
     )
     parser.add_argument(
@@ -184,24 +184,47 @@ def parse_args() -> Options:
         dest="receiver_mail",
     )
     parser.add_argument(
-        "--schedule",
-        type=int,
-        help=(
-            "Used schedule for this script (e.g. your cronjob schedule; in hours)."
-            " This determines the settings for scraping:"
-            " e.g. 24, meaning every 24 hours => fetch only the last day."
-        ),
-        required=True,
-    )
-    parser.add_argument(
         "-k",
         "--keywords",
         nargs="+",  # e.g. "--keywords keyword1 keyword2 keyword3"
         help="List of keywords used for scraping (separate multiple by spaces).",
         required=True,
     )
+    parser.add_argument(
+        "-n",
+        "--scrape-period",
+        type=int,
+        help=(
+            "How many days to scrape back (including today).."
+            "Increment this by one day for deduplication if run periodically."
+        ),
+        dest="scrape_period",
+        required=True,
+    )
+
+    # ----- not part of the app's options -----
+
+    parser.add_argument(
+        "-v", "--verbose", help="Print log to stdout too.", action="store_true"
+    )
+    # exits automatically when invoked
+    parser.add_argument(
+        "--version",
+        help="Print the version of the script and exit.",
+        action="version",
+        version=VERSION,
+    )
 
     args = parser.parse_args()
+
+    if args.verbose:
+        logger.addHandler(logging.StreamHandler())
+        logger.warn(
+            (
+                "Verbose mode enabled. Logging to stdout too. Some log messages might be omitted."
+                f"Check the log file for full details: {LOG_FILE.absolute()}"
+            )
+        )
 
     options: Options = {
         "sender_mail": args.sender_mail,
@@ -209,7 +232,7 @@ def parse_args() -> Options:
         "smtp_server": args.smtp_server,
         "smtp_port": args.smtp_port,
         "receiver_mail": args.receiver_mail,
-        "schedule": args.schedule,
+        "scrape_period": args.scrape_period,
         "keywords": args.keywords,
     }
 
@@ -218,23 +241,53 @@ def parse_args() -> Options:
     return options
 
 
+# -------------------- matricula-online-scraper executable --------------------
+
+
+EXECUTABLE = shutil.which("matricula-online-scraper")
+if not EXECUTABLE:
+    logger.error("Could not find executable 'matricula-online-scraper'.")
+    exit(1)
+
+
+SCRAPER_VERSION = (
+    subprocess.run([EXECUTABLE, "--version"], encoding="utf-8", capture_output=True)
+    .stdout.strip()
+    .replace("\n", "")
+)
+if not SCRAPER_VERSION:
+    logger.error("Could not get version of executable 'matricula-online-scraper'.")
+    exit(1)
+
+logger.debug(
+    f"Using matricula-online-scraper (v{SCRAPER_VERSION}) executable at: {EXECUTABLE}"
+)
+
+
 # -------------------- Data processing / CSV parsing --------------------
 
-# folder where scraped data is stored
-DATA_STORE = Path(APP_DIR, "scraper-data")
+
+class NewsfeedArticle(TypedDict):
+    headline: str
+    url: str
+    date: date
+    preview: str
+
+
+def is_eq_newsfeed_article(a: NewsfeedArticle, b: NewsfeedArticle) -> bool:
+    return a["url"] == b["url"]
 
 
 def fetch_newsfeed(*, last_n_days: int) -> Path:
     """Fetches the last n days and returns the path to the scraped data."""
-    file = Path(DATA_STORE, f"job_{JOB_ID}")
-    format = "csv"
+    filename = DATA_FILE.with_suffix("")  # remove '.csv' suffix
     call_args: list[str] = [
         EXECUTABLE,
         "fetch",
         "newsfeed",
-        str(file.absolute()),
+        str(filename.absolute()),
         "-e",
-        format,
+        "csv",
         "-n",
         str(last_n_days),
     ]
@@ -245,32 +298,24 @@ def fetch_newsfeed(*, last_n_days: int) -> Path:
         logger.error(
             f"Scraping the newsfeed failed with exit code {process.returncode}. Captured stdout: {process.stdout}. Captured stderr: {process.stderr}"
         )
-        raise RuntimeError("Error while fetching newsfeed. Aborting.")
+        exit(1)
 
     # output file in stdout after substring 'Output saved to:'
-    output = process.stdout.strip()
-    output = (
-        output[output.find("Output saved to:") + len("Output saved to:") :]
-        .strip()
-        .replace("\n", "")
-    )
-    output = Path(output)
+    output = DATA_FILE
     if not output.exists():
         logger.error(f"Scraped newsfeed data not found at: {output}")
-        raise FileNotFoundError(f"Scraped newsfeed data not found at: {output}")
+        exit(1)
 
     logger.debug(f"Scraped newsfeed data successfully, saved to: {output}")
     return output
 
 
-class NewsfeedArticle(TypedDict):
-    headline: str
-    url: str
-    date: date
-    preview: str
+def parse_article_date_str(value: str) -> date:
+    # if used write_back_history, then the date was already parsed
+    if "-" in value:
+        return datetime.strptime(value, "%Y-%m-%d").date()
 
-
-def parse_date_str(value: str) -> date:
+    # format from Matricula
     return (
         datetime.strptime(value, "%b. %d, %Y").date()
         if "." in value
@@ -278,7 +323,7 @@ def parse_date_str(value: str) -> date:
     )
 
 
-def parse_csv(path: Path) -> list[NewsfeedArticle]:
+def parse_data_file(path: Path) -> list[NewsfeedArticle]:
     # csv format: headline,date,preview,url
     articles: list[NewsfeedArticle] = []
     with open(path, "r", encoding="utf-8") as file:
@@ -286,10 +331,10 @@ def parse_csv(path: Path) -> list[NewsfeedArticle]:
         for row in reader:
             try:
                 date = row["date"]
-                date = parse_date_str(date)
+                date = parse_article_date_str(date)
             except Exception as e:
                 logger.error(f"Failed to parse date from row: {row}. Error: {e}")
-                raise ValueError(f"Failed to parse date from row: {row}.") from e
+                exit(1)
 
             articles.append(
                 NewsfeedArticle(
@@ -299,6 +344,8 @@ def parse_csv(path: Path) -> list[NewsfeedArticle]:
                     preview=row["preview"],
                 )
             )
+
+    logger.debug(f"Parsed {len(articles)} articles from csv file: {path.absolute()}")
     return articles
 
 
@@ -315,7 +362,75 @@ def find(
             ):
                 matches.append(article)
                 break
+
+    logger.debug(f"Found {len(matches)} matches for keywords: {keywords}")
     return matches
+
+
+def write_back_history(*, to_data_file: Path, with_matches: list[NewsfeedArticle]):
+    with open(to_data_file, "w+", encoding="utf-8") as file:
+        # erase file content
+        # only store matches in the data file to use for later comparison
+        if with_matches:
+            writer = csv.DictWriter(file, fieldnames=with_matches[0].keys())
+            writer.writeheader()
+            writer.writerows(with_matches)
+    logger.debug("Erased data file and stored matches for later comparison.")
+
+
+def deduplicate(
+    new_matches: list[NewsfeedArticle], last_data_file: Path | None
+) -> list[NewsfeedArticle]:
+    """handles duplicates due to scrape period overlaps"""
+    len_before_deduplication = len(new_matches)
+
+    if last_data_file is None:
+        logger.debug("No last data file found. Skipping deduplication.")
+        return new_matches
+
+    last_matches = parse_data_file(last_data_file)
+
+    # remove duplicates
+    new_matches = [
+        match
+        for match in new_matches
+        if not any(
+            is_eq_newsfeed_article(match, last_match) for last_match in last_matches
+        )
+    ]
+    logger.debug(
+        (
+            f"Removed {len_before_deduplication-len(new_matches)} duplicates due to scrape period overlaps."
+            f" Matches before deduplication: {len_before_deduplication}, after: {len(new_matches)}."
+        )
+    )
+
+    return new_matches
+
+
+# -------------------- history --------------------
+
+
+class Job(TypedDict):
+    creation_date: datetime
+    matches: list[NewsfeedArticle]
+
+
+def get_history(*, limit: int = 10) -> tuple[list[Job], int, Path | None]:
+    """(list of jobs with limit, number of total jobs, last data file)"""
+    data_files = sorted(DATA_STORE.glob("*.csv"), key=os.path.getmtime, reverse=True)
+    data_files = [file for file in data_files if file != DATA_FILE]
+    total_jobs = len(data_files)
+    data_files = data_files[:limit]
+    last_data_file = data_files[0] if data_files else None
+
+    jobs = []
+    for file in data_files:
+        matches = parse_data_file(file)
+        creation_date = datetime.fromtimestamp(os.path.getmtime(file))
+        jobs.append(Job(creation_date=creation_date, matches=matches))
+
+    return jobs, total_jobs, last_data_file
 
 
 # -------------------- mail parts --------------------
@@ -341,24 +456,22 @@ def format_newsfeed_article(article: NewsfeedArticle) -> str:
 def Body(
     *,
     name: str,
-    schedule: int,
+    scrape_period: int,
     keywords: list[str],
+    total_jobs: int,
+    recent_jobs: list[Job],
     matches: list[NewsfeedArticle],
     # history: History,
 ) -> str:
     msg = "one new match" if len(matches) <= 1 else f"{len(matches)} new matches"
 
-    schedule_str: str = (
-        f"every {schedule} hour"
-        if schedule == 1
-        else f"every {schedule} hours"
-        if schedule < 3 * 24
-        else f"every {schedule/24:.1f} days"
-    )
+    if len(matches) == 0:
+        logger.error("Implementation error: No matches given.")
+        exit(1)
 
     body = f"""Dear {name},
 
-in the last scheduled interval period (the last {schedule/24:.1f} days) I found {msg}:
+in the last scheduled interval period I found {msg}:
 
 {
    "\n\n".join(f"- {idx+1} -\n" + format_newsfeed_article(match) for idx, match in enumerate(matches))
@@ -373,15 +486,17 @@ Note that this is prone to errors, because job recovery is not supported (e.g. s
 See https://github.com/lsg551/matricula-online-scraper for more information.
 
 - bot version: v{VERSION}
-- job-id: {JOB_ID}
-- job-date: {JOB_DATE.isoformat()}
+- job id: {JOB_ID}
+- job date: {JOB_START.strftime("%d.%m.%Y %H:%M:%S")}
 - matricula-online-scraper version: v{SCRAPER_VERSION}
-- schedule: {schedule_str} (scraped range)
+- scrape period: {scrape_period} day{"" if scrape_period == 1 else "s"} (deduplicated)
 - keywords: {", ".join(keywords)}
 
 The following log lists this bot's recent activity since the last message sent to you. Ensure that the bot is running as expected.
 
-str(log)
+Total jobs: {total_jobs}
+Recent jobs: {"/" if len(recent_jobs) == 0 else ""}
+{"\n".join(f"- {job['creation_date'].strftime('%d.%m.%Y %H:%M:%S')} - {len(job['matches'])} matches" for job in recent_jobs)}
 
 PLEASE REPORT ANY ISSUES HERE: https://github.com/lsg551/matricula-online-scraper/issues
 """
@@ -420,9 +535,10 @@ def send_mail(
                 raise Exception(err)
         except Exception as e:
             logger.error(f"Failed to send mail: {e}")
-            raise RuntimeError("Failed to send mail.") from e
+            exit(1)
         else:
-            logger.debug("Mail sent successfully.")
+            timedelta = datetime.now() - JOB_START
+            logger.info(f"Mail sent successfully. Terminating job after {timedelta}")
         finally:
             server.quit()
 
@@ -433,28 +549,31 @@ def send_mail(
 if __name__ == "__main__":
     args = parse_args()
 
-    # scrape and process csv data
-    days = args["schedule"] // 24
-    file = fetch_newsfeed(last_n_days=days)
-    articles = parse_csv(file)
-    logger.debug(f"Parsed {len(articles)} articles from csv file: {file.absolute()}")
+    recent_jobs, total_jobs, last_data_file = get_history()
+
+    # scrape and find matches
+    file = fetch_newsfeed(last_n_days=args["scrape_period"])
+    articles = parse_data_file(file)
     keywords = args["keywords"]
     matches = find(keywords=keywords, in_articles=articles)
-    logger.debug(
-        f"Found {len(matches)} matches for keywords {keywords} in: {file.absolute()}"
-    )
+    write_back_history(to_data_file=DATA_FILE, with_matches=matches)
+    matches = deduplicate(matches, last_data_file=last_data_file)
 
     if len(matches) == 0:
-        logger.debug("No matches found. Aborting.")
+        timedelta = datetime.now() - JOB_START
+        logger.info(
+            f"No matches found. Terminating early without dilerving email notification. Job duration: {timedelta}."
+        )
         exit(0)
 
     # build message
-    # history = History(LOG_FILE)
     subject = Subject(num_matches=len(matches))
     body = Body(
         name="User",
-        schedule=args["schedule"],
         keywords=args["keywords"],
+        scrape_period=args["scrape_period"],
+        total_jobs=total_jobs,
+        recent_jobs=recent_jobs,
         matches=matches,
         # log=History(LOG_FILE),
     )
