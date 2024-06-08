@@ -148,59 +148,6 @@ def parse_args() -> Options:
             " A user will be notified via email if match was found."
         )
     )
-    parser.add_argument(
-        "--from",
-        type=str,
-        help="Sender's email address.",
-        required=True,
-        dest="sender_mail",
-    )
-    parser.add_argument(
-        "--password",
-        type=str,
-        help="Sender's email password.",
-        required=True,
-        dest="sender_password",
-    )
-    parser.add_argument(
-        "--smtp-server",
-        type=str,
-        help="SMTP server address.",
-        required=True,
-        dest="smtp_server",
-    )
-    parser.add_argument(
-        "-p" "--smtp-port",
-        type=int,
-        help="SMTP server port.",
-        required=True,
-        dest="smtp_port",
-    )
-    parser.add_argument(
-        "--to",
-        type=str,
-        help="Receiver's email address.",
-        required=True,
-        dest="receiver_mail",
-    )
-    parser.add_argument(
-        "-k",
-        "--keywords",
-        nargs="+",  # e.g. "--keywords keyword1 keyword2 keyword3"
-        help="List of keywords used for scraping (separate multiple by spaces).",
-        required=True,
-    )
-    parser.add_argument(
-        "-n",
-        "--scrape-period",
-        type=int,
-        help=(
-            "How many days to scrape back (including today).."
-            "Increment this by one day for deduplication if run periodically."
-        ),
-        dest="scrape_period",
-        required=True,
-    )
 
     # ----- not part of the app's options -----
 
@@ -213,6 +160,64 @@ def parse_args() -> Options:
         help="Print the version of the script and exit.",
         action="version",
         version=VERSION,
+    )
+
+    # ----- use cli options -----
+
+    use_cli = parser.add_argument_group("operational arguments")
+
+    use_cli.add_argument(
+        "--from",
+        type=str,
+        help="Sender's email address.",
+        required=True,
+        dest="sender_mail",
+    )
+    use_cli.add_argument(
+        "--password",
+        type=str,
+        help="Sender's email password.",
+        required=True,
+        dest="sender_password",
+    )
+    use_cli.add_argument(
+        "--smtp-server",
+        type=str,
+        help="SMTP server address.",
+        required=True,
+        dest="smtp_server",
+    )
+    use_cli.add_argument(
+        "-p" "--smtp-port",
+        type=int,
+        help="SMTP server port.",
+        required=True,
+        dest="smtp_port",
+    )
+    use_cli.add_argument(
+        "--to",
+        type=str,
+        help="Receiver's email address.",
+        required=True,
+        dest="receiver_mail",
+    )
+    use_cli.add_argument(
+        "-k",
+        "--keywords",
+        nargs="+",  # e.g. "--keywords keyword1 keyword2 keyword3"
+        help="List of keywords used for scraping (separate multiple by spaces).",
+        required=True,
+    )
+    use_cli.add_argument(
+        "-n",
+        "--scrape-period",
+        type=int,
+        help=(
+            "How many days to scrape back (including today).."
+            "Increment this by one day for deduplication if run periodically."
+        ),
+        dest="scrape_period",
+        required=True,
     )
 
     args = parser.parse_args()
