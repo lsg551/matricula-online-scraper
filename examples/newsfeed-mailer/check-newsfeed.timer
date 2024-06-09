@@ -3,7 +3,6 @@
 
 [Unit]
 Description=Daily check for new newsfeed items in Matricula Online
-Requires=check-newsfeed.service
 
 [Timer]
 Unit=check-newsfeed.service

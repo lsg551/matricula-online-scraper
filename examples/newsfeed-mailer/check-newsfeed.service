@@ -11,6 +11,3 @@ User=<user>
 Type=oneshot
 EnvironmentFile=/home/<user>/scripts/config.env
 ExecStart=/home/<user>/.pyenv/shims/python3.12 /home/<user>/scripts/check-newsfeed.py $FROM $PASSWORD $SMTP_SERVER $SMTP_PORT $TO $KEYWORDS $SCRAPE_PERIOD
-
-[Install]
-WantedBy=multi-user.target

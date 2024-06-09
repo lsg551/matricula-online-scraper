@@ -46,7 +46,6 @@ $ vim /etc/systemd/system/check-newsfeed.timer
 Enable the systemd units.
 
 ```bash
-$ systemctl daemon-reload
-$ sudo systemctl enable check-newsfeed.service
-$ sudo systemctl enable check-newsfeed.timer && sudo systemctl start check-newsfeed.timer
+$ systemctl --user daemon-reload
+$ sudo systemctl enable check-newsfeed.timer
 ```
