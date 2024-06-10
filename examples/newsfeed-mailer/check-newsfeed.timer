@@ -1,0 +1,13 @@
+# This timer unit if for the check-newsfeed.py script.
+# See https://github.com/lsg551/matricula-online-scraper for more information.
+
+[Unit]
+Description=Daily check for new newsfeed items in Matricula Online
+
+[Timer]
+Unit=check-newsfeed.service
+# 16:00 each day (cron 0 16 * * *)
+OnCalendar=*-*-* 16:00:00
+
+[Install]
+WantedBy=timers.target
