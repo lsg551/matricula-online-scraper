@@ -8,6 +8,7 @@ from typing import Annotated, Optional
 import pkg_resources
 import typer
 from matricula_online_scraper.cli.fetch import app as fetch_app
+from matricula_online_scraper.cli.get import app as get_app
 
 app = typer.Typer(
     help="Command Line Interface tool for scraping Matricula Online https://data.matricula-online.eu.",
@@ -16,6 +17,10 @@ app = typer.Typer(
 app.add_typer(
     fetch_app,
     name="fetch",
+)
+app.add_typer(
+    get_app,
+    name="get",
 )
 
 
