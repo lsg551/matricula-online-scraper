@@ -11,46 +11,46 @@ from scrapy.item import Item
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class DecomposedImageURL:
-    """Parts of the URL of an image on Matricula Online.
+# @dataclass
+# class DecomposedImageURL:
+#     """Parts of the URL of an image on Matricula Online.
 
-    Note that the URL is expected to have the following format,
-    but the parameter `?pg=1` is omitted.
+#     Note that the URL is expected to have the following format,
+#     but the parameter `?pg=1` is omitted.
 
-    Examples:
-    >>> _decompose_image_url("https://data.matricula-online.eu/de/deutschland/augsburg/aach/1-THS/?pg=1")
-    ... DecomposedImageURL(
-    ...     country="deutschland",
-    ...     region="augsburg",
-    ...     parish="aach",
-    ...     fond_id="1-THS",
-    ... )
-    """
+#     Examples:
+#     >>> _decompose_image_url("https://data.matricula-online.eu/de/deutschland/augsburg/aach/1-THS/?pg=1")
+#     ... DecomposedImageURL(
+#     ...     country="deutschland",
+#     ...     region="augsburg",
+#     ...     parish="aach",
+#     ...     fond_id="1-THS",
+#     ... )
+#     """
 
-    country: str
-    region: str
-    parish: str
-    fond_id: str
+#     country: str
+#     region: str
+#     parish: str
+#     fond_id: str
 
 
-def _decompose_image_url(url: str) -> DecomposedImageURL:
-    """Decompose the URL of an image on Matricula Online."""
+# def _decompose_image_url(url: str) -> DecomposedImageURL:
+#     """Decompose the URL of an image on Matricula Online."""
 
-    match = re.match(
-        r"https://data.matricula-online.eu/(?P<country_code>\w+)/(?P<country>\w+)/(?P<region>\w+)/(?P<parish>\w+)/(?P<fond_id>[\w-]+)",
-        url,
-    )
+#     match = re.match(
+#         r"https://data.matricula-online.eu/(?P<country_code>\w+)/(?P<country>\w+)/(?P<region>\w+)/(?P<parish>\w+)/(?P<fond_id>[\w-]+)",
+#         url,
+#     )
 
-    if match is None:
-        raise ValueError(f"Could not decompose URL {url}")
+#     if match is None:
+#         raise ValueError(f"Could not decompose URL {url}")
 
-    country = match.group("country")
-    region = match.group("region")
-    parish = match.group("parish")
-    fond_id = match.group("fond_id")
+#     country = match.group("country")
+#     region = match.group("region")
+#     parish = match.group("parish")
+#     fond_id = match.group("fond_id")
 
-    return DecomposedImageURL(country, region, parish, fond_id)
+#     return DecomposedImageURL(country, region, parish, fond_id)
 
 
 def _extract_unique_id(image_url: str) -> Path:
