@@ -74,25 +74,44 @@ def _extract_unique_id(image_url: str) -> Path:
     return Path(match.group(1))
 
 
-def _extract_page_number(image_url: str) -> int:
-    """Return the page number of an image URL.
+# BUG: Matricula is too inconsistent to extract the page number from the URL.
+# def _extract_page_number(image_url: str) -> int:
+#     """Return the page number of an image URL.
+
+#     Examples:
+#     >>> _extract_page_number("http://hosted-images.matricula-online.eu/images/matricula/BiAA/ABA_Pfarrmatrikeln_Aach_001/ABA_Pfarrmatrikeln_Aach_001_0083.jpg")
+#     ... 83
+
+#     Raises:
+#         ValueError: If the page number could not be extracted.
+#     """
+
+#     # Matricula is very inconsistent. It might use "[…]_0001.jpg", "[…]-01.jpg" or something entirely different.
+
+#     match = re.search(r"(\d+).jpg$", image_url)
+
+#     if match is None:
+#         raise ValueError(f"Could not extract page number from URL {image_url}")
+
+#     return int(match.group(1))
+
+
+def _extract_last_path_segment(image_url: str) -> str:
+    """Return the last path segment of an image URL.
+
+    Used as the page number.
 
     Examples:
-    >>> _extract_page_number("http://hosted-images.matricula-online.eu/images/matricula/BiAA/ABA_Pfarrmatrikeln_Aach_001/ABA_Pfarrmatrikeln_Aach_001_0083.jpg")
-    ... 83
-
-    Raises:
-        ValueError: If the page number could not be extracted.
+    >>> _extract_last_path_segment("http://hosted-images.matricula-online.eu/images/matricula/DAG/MatrikenGraz-Seckau/Ardning/6014/Taufbuch/01/1786-1830/Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004.jpg")
+    ... "Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004"
     """
 
-    # Matricula is very inconsistent. It might use "[…]_0001.jpg", "[…]-01.jpg" or something entirely different.
-
-    match = re.search(r"(\d+).jpg$", image_url)
+    match = re.search(r"/([^/]+)\.jpg$", image_url)
 
     if match is None:
-        raise ValueError(f"Could not extract page number from URL {image_url}")
+        raise ValueError(f"Could not extract last path segment from URL {image_url}")
 
-    return int(match.group(1))
+    return match.group(1)
 
 
 class ImagesPipeline(ImagesPipeline):
@@ -121,16 +140,6 @@ class ImagesPipeline(ImagesPipeline):
             logger.error(f"Could not decompose URL {original_url}: {e}", exc_info=True)
             path = Path("unknown/")
 
-        page_number: int | None = None
-        try:
-            page_number = _extract_page_number(request.url)
-        except ValueError as e:
-            logger.error(
-                f"Could not extract page number from URL {request.url}: {e}",
-                exc_info=True,
-            )
+        page = _extract_last_path_segment(request.url)
 
-        if page_number is not None:
-            return f"{path}/page{page_number}_{url_hash}.jpg"
-        else:
-            return f"{path}/unknown_{url_hash}.jpg"
+        return f"{path}/{page}_{url_hash}.jpg"
