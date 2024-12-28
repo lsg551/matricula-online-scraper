@@ -5,30 +5,51 @@ Scrapy spider to scrape church registers (= scanned church books) from Matricula
 import re
 import scrapy
 import json
+import logging
 import base64
 from rich import console
-# from ..utils.pipeline_observer import PipelineObserver
+from ..utils.pipeline_observer import PipelineObserver
 
 stderr = console.Console(stderr=True)
+logger = logging.getLogger(__name__)
+
+
+# overrides the default so we can pass custom metadata to the pipeline
+class ChurchRegisterDownloadItem(scrapy.Item):
+    image_urls = scrapy.Field()
+    images = scrapy.Field()
+    # --- custom fields ---
+    original_url = scrapy.Field()
 
 
 class ChurchRegisterSpider(scrapy.Spider):
     name = "church_register"
 
-    # see the order of middleware here:  https://doc.scrapy.org/en/latest/topics/settings.html#std-setting-SPIDER_MIDDLEWARES_BASE
-    # 51 is right after the built-in middleware `HttpErrorMiddleware` which handles 404s
     custom_settings = {
+        # see the order of middleware here:  https://doc.scrapy.org/en/latest/topics/settings.html#std-setting-SPIDER_MIDDLEWARES_BASE
+        # 51 is right after the built-in middleware `HttpErrorMiddleware` which handles 404s
         "SPIDER_MIDDLEWARES": {
             "matricula_online_scraper.middlewares.Catch404.Catch404": 51
         },
-        # "DOWNLOADER_MIDDLEWARES": {
-        #     "matricula_online_scraper.middlewares.DownloadMiddleware.DownloadMiddleware": 901
+        "ITEM_PIPELINES": {
+            "matricula_online_scraper.pipelines.images_pipeline.ImagesPipeline": 1
+        },
+        # "EXTENSIONS": {
+        #     "matricula_online_scraper.extensions.church_register.StatusTrackerExtension": 123
         # },
     }
 
-    # def __init__(self, *args, observer: PipelineObserver, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.pipeline_observer = observer
+    def __init__(self, *args, observer: PipelineObserver, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pipeline_observer = observer
+
+        print("initalized extension")
+
+        if hasattr(self, "crawler"):
+            self.crawler.extension_pipline_observer = observer  # type: ignore
+            logger.debug
+        else:
+            logger.warning("No object 'crawler' found in the spider")
 
     def parse(self, response):
         # Note: a "church register url" like https://data.matricula-online.eu/de/deutschland/aachen/aachen-hl-kreuz/KB+001/?pg=1
@@ -90,4 +111,4 @@ class ChurchRegisterSpider(scrapy.Spider):
         #         self.pipeline_observer.observe(file, label, initiator=response.url)
         #     self.pipeline_observer.mark_as_in_process(response.url)
 
-        yield {"image_urls": files}
+        yield ChurchRegisterDownloadItem(image_urls=files, original_url=response.url)
