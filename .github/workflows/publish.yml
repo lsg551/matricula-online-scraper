@@ -1,11 +1,10 @@
-# This will build and publis the CLI to PyPi when a tag ref in the v*.*.* form is committed.
+# This will build and publish the CLI to PyPi when a tag ref in the v*.*.* form is committed.
 
 name: Publish to PyPi
 on:
   push:
     tags:
       - "v*.*.*"
-  workflow_dispatch:
 
 jobs:
   publish:
@@ -45,9 +44,11 @@ jobs:
       - name: Validate version consistency
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          PACKAGE_VERSION=$(python -c "from importlib.metadata import version; print(version('matricula-online-scraper'))")
+          PACKAGE_VERSION=$(grep -m 1 'version = ' pyproject.toml | cut -d '"' -f 2)
+          echo "Latest tag version: $TAG_VERSION"
+          echo "Package version: $PACKAGE_VERSION"
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "Tag version ($TAG_VERSION) doesn't match package version ($PACKAGE_VERSION)"
+            echo "Error: Tag version ($TAG_VERSION) doesn't match package version in pyproject.toml ($PACKAGE_VERSION)"
             exit 1
           fi
 
