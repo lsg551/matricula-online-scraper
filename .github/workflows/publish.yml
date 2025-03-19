@@ -1,15 +1,38 @@
-# The following will build and publish the python package with poetry when project is tagged in the v*.*.* form.
+# This will build and publis the CLI to PyPi when a tag ref in the v*.*.* form is committed.
+
 name: Publish to PyPi
 on:
   push:
     tags:
       - "v*.*.*"
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - name: Build and publish to pypi
-        uses: JRubics/poetry-publish@v2.0
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          pypi_token: ${{ secrets.PYPI_TOKEN }}
+          version: "0.6.8"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish package to PyPi
+        run: uv publish
+        # added "trusted publisher" to PyPi to avoid entering credentials
+
+      - name: Prune uv cache
+        run: uv cache prune --ci
