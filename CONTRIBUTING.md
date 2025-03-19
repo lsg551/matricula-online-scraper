@@ -38,3 +38,9 @@ mostly untyped and custom type stubs or elaborated type checks were not added to
 this project yet, use some kind of static type checker to ensure type safety
 wherever possible. I recommend [Pyright](https://github.com/microsoft/pyright),
 this is not enforced though. Also, always use type hints wherever possible!
+
+### Release Workflow
+
+After merging a pull request into the main branch, create a new release with a
+detailed description as well as a tag. This tag ref will trigger a workflow to
+build and publish the package to PyPi.
