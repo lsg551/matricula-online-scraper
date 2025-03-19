@@ -7,13 +7,12 @@ on:
       - "v*.*.*"
   workflow_dispatch:
 
-permissions:
-  id-token: write # required for trusted publishing to PyPi
-  contents: read
-
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for trusted publishing to PyPi
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -32,12 +31,29 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
+      - name: Validate version consistency
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          PACKAGE_VERSION=$(python -c "from importlib.metadata import version; print(version('matricula-online-scraper'))")
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) doesn't match package version ($PACKAGE_VERSION)"
+            exit 1
+          fi
+
       - name: Build package
-        run: uv build
+        run: uv build --out-dir dist/
+
+      - name: Archive build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-without-markdown
+          path: |
+            dist
+            !dist/**/*.md
 
       # added "trusted publisher" to PyPi to avoid entering credentials
       - name: Publish package to PyPi
-        run: uv publish
+        run: uv publish --token ${{ secrets.PYPI_TOKEN }}
 
       - name: Prune uv cache
         run: uv cache prune --ci
