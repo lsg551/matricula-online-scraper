@@ -61,7 +61,7 @@ class LocationsSpider(scrapy.Spider):
             (
                 "https://data.matricula-online.eu/en/suchen/"
                 + f"?place={self.place}"
-                + f"&diocese={self.diocese if self.diocese is not None else ""}"
+                + f"&diocese={self.diocese if self.diocese is not None else ''}"
                 + f"&date_range={date_range[0]},{date_range[1]}"
                 + ("&date_filter=on" if self.date_filter else "")
             )
