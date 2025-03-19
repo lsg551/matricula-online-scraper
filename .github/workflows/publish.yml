@@ -5,9 +5,14 @@ on:
   push:
     tags:
       - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  id-token: write # required for trusted publishing to PyPi
+  contents: read
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,9 +35,9 @@ jobs:
       - name: Build package
         run: uv build
 
+      # added "trusted publisher" to PyPi to avoid entering credentials
       - name: Publish package to PyPi
         run: uv publish
-        # added "trusted publisher" to PyPi to avoid entering credentials
 
       - name: Prune uv cache
         run: uv cache prune --ci
