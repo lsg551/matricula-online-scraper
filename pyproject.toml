@@ -1,6 +1,6 @@
 [project]
 name = "matricula-online-scraper"
-version = "0.5.0"
+version = "0.5.1"
 description = "Command Line Interface tool for scraping Matricula Online https://data.matricula-online.eu."
 authors = [{ name = "Luis Schulte" }]
 license = { text = "MIT" }

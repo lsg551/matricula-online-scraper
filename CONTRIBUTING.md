@@ -44,3 +44,5 @@ this is not enforced though. Also, always use type hints wherever possible!
 After merging a pull request into the main branch, create a new release with a
 detailed description as well as a tag. This tag ref will trigger a workflow to
 build and publish the package to PyPi.
+
+Do NOT forget to bump the verison number in the `pyproject.toml` file before!
