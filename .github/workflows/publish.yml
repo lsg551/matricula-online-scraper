@@ -31,15 +31,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: Validate version consistency
-        run: |
-          TAG_VERSION=${GITHUB_REF#refs/tags/v}
-          PACKAGE_VERSION=$(python -c "from importlib.metadata import version; print(version('matricula-online-scraper'))")
-          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
-            echo "Tag version ($TAG_VERSION) doesn't match package version ($PACKAGE_VERSION)"
-            exit 1
-          fi
-
       - name: Build package
         run: uv build --out-dir dist/
 
@@ -50,6 +41,15 @@ jobs:
           path: |
             dist
             !dist/**/*.md
+
+      - name: Validate version consistency
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          PACKAGE_VERSION=$(python -c "from importlib.metadata import version; print(version('matricula-online-scraper'))")
+          if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Tag version ($TAG_VERSION) doesn't match package version ($PACKAGE_VERSION)"
+            exit 1
+          fi
 
       # added "trusted publisher" to PyPi to avoid entering credentials
       - name: Publish package to PyPi
