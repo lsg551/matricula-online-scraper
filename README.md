@@ -82,11 +82,7 @@ to a `.jsonl` file:
 $ matricula-online-scraper fetch parish ./output.jsonl --urls https://data.matricula-online.eu/en/deutschland/muenster/muenster-st-martini/
 ```
 
-## License & Contributing
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 for details.
-
-Contributions are welcome! Feel free to open an issue or submit a pull request
-if you have suggestions, especially bug fixes. Please make sure to follow the
-[Contributing Guidelines](CONTRIBUTING.md).
