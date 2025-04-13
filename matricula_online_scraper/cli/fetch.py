@@ -2,30 +2,31 @@
 'fetch' command group for the CLI, including subcommands for fetching various spiders.
 """
 
-from typing import Annotated, List, Optional, Tuple
 from pathlib import Path
+from typing import Annotated, List, Optional, Tuple
+
 import typer
-from scrapy import crawler  # pylint: disable=import-error # type: ignore
 from rich import print  # pylint: disable=redefined-builtin
+from scrapy import crawler  # pylint: disable=import-error # type: ignore
+
 from matricula_online_scraper.spiders.locations_spider import LocationsSpider
 from matricula_online_scraper.spiders.newsfeed_spider import NewsfeedSpider
 from matricula_online_scraper.spiders.parish_registers_spider import (
     ParishRegistersSpider,
 )
-from .utils import URL
+
 from .common import (
+    DEFAUL_APPEND,
+    DEFAULT_OUTPUT_FILE_FORMAT,
     DEFAULT_SCRAPER_LOG_LEVEL,
     DEFAULT_SCRAPER_SILENT,
-    DEFAULT_OUTPUT_FILE_FORMAT,
-    DEFAUL_APPEND,
-    LogLevelOption,
-    OutputFileNameArgument,
-    OutputFileFormatOption,
-    SilentOption,
     AppendOption,
+    LogLevelOption,
+    OutputFileFormatOption,
+    OutputFileNameArgument,
+    SilentOption,
     file_format_to_scrapy,
 )
-
 
 app = typer.Typer()
 
@@ -133,8 +134,8 @@ def location(
 @app.command()
 def parish(
     urls: Annotated[
-        List[URL],
-        typer.Option("--url", "-u", parser=URL, help="One ore more URLs to scrape."),
+        List[str],
+        typer.Option("--url", "-u", help="One ore more URLs to scrape."),
     ],
     output_file_name: OutputFileNameArgument = Path("matricula-newsfeed"),
     output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
