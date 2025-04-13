@@ -43,9 +43,9 @@ $ pip install -r requirements.txt
 ## Usage
 
 You can use this tool to scrape the three primary entities from Matricula:
-1. Scanned parish registers (→ images of baptism, marriage, and death records)
-2. A list of all available parishes (→ location metadata)
-3. A list for each parish with metadata about its registers, including dates ranges, type etc.
+1. [Scanned parish registers (→ images of baptism, marriage, and death records)](#1-example-download-a-scanned-parish-register-all-images-of-a-book)
+2. [A list of all available parishes (→ location metadata)](#2-example-download-a-huge-list-of-all-available-parishes-on-matricula)
+3. [A list for each parish with metadata about its registers, including dates ranges, type etc.](#3-example-download-a-list-about-the-registers-of-a-single-parish)
 
 Most users likely want to scrape the scanned parish registers (1).
 The additional metadata (2,3) can be useful for other purposes such as automation,
