@@ -2,13 +2,13 @@
 Scrapy spider to scrape church registers (= scanned church books) from Matricula Online.
 """
 
-import re
-import scrapy
+import base64
 import json
 import logging
-import base64
+import re
+
+import scrapy
 from rich import console
-from ..utils.pipeline_observer import PipelineObserver
 
 stderr = console.Console(stderr=True)
 logger = logging.getLogger(__name__)
@@ -38,18 +38,6 @@ class ChurchRegisterSpider(scrapy.Spider):
         #     "matricula_online_scraper.extensions.church_register.StatusTrackerExtension": 123
         # },
     }
-
-    def __init__(self, *args, observer: PipelineObserver, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.pipeline_observer = observer
-
-        print("initalized extension")
-
-        if hasattr(self, "crawler"):
-            self.crawler.extension_pipline_observer = observer  # type: ignore
-            logger.debug
-        else:
-            logger.warning("No object 'crawler' found in the spider")
 
     def parse(self, response):
         # Note: a "church register url" like https://data.matricula-online.eu/de/deutschland/aachen/aachen-hl-kreuz/KB+001/?pg=1
