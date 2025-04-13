@@ -28,9 +28,6 @@ class ChurchRegisterSpider(scrapy.Spider):
     custom_settings = {
         # see the order of middleware here:  https://doc.scrapy.org/en/latest/topics/settings.html#std-setting-SPIDER_MIDDLEWARES_BASE
         # 51 is right after the built-in middleware `HttpErrorMiddleware` which handles 404s
-        "SPIDER_MIDDLEWARES": {
-            "matricula_online_scraper.middlewares.Catch404.Catch404": 51
-        },
         "ITEM_PIPELINES": {
             "matricula_online_scraper.pipelines.images_pipeline.ImagesPipeline": 1
         },
