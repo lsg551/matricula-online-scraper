@@ -1,9 +1,7 @@
-"""
-Ping the host and check if it is reachable.
-"""
+"""Ping the host and check if it is reachable."""
 
-import requests
 import pytest
+import requests
 
 HOST = "https://data.matricula-online.eu/en/"
 LOCATION_SEARCH = "https://data.matricula-online.eu/en/suchen/"

@@ -1,10 +1,9 @@
-"""
-Scrapy spider to scrape parish registers from a specific location from Matricula Online.
-"""
+"""Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
 from typing import Dict, List
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
+
 import scrapy  # pylint: disable=import-error # type: ignore
-from urllib.parse import urlencode, urlparse, parse_qs, urljoin, urlunparse
 
 HOST = "https://data.matricula-online.eu"
 

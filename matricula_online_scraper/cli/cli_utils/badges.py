@@ -1,6 +1,7 @@
 from attr import dataclass
-from rich.text import Text
 from rich.style import Style
+from rich.text import Text
+
 from .color import Color
 
 

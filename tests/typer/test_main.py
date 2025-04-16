@@ -1,8 +1,7 @@
-"""
-Test $ matricula-online-scraper …
-"""
+"""Test $ matricula-online-scraper …"""
 
 from typer.testing import CliRunner
+
 from matricula_online_scraper.main import app
 
 runner = CliRunner()

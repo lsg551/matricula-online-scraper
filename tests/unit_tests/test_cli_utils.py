@@ -1,10 +1,8 @@
-"""
-Unit tests for .cli.utils module.
-"""
+"""Unit tests for .cli.utils module."""
 
 import pytest
-from matricula_online_scraper.cli.utils import URL
 
+from matricula_online_scraper.cli.utils import URL
 
 VALID_URLS = [
     "https://www.example.com",
@@ -110,7 +108,6 @@ def test_url_valid(positive: str):
 @pytest.mark.parametrize("negative", INVALID_URLS)
 def test_url_invalid(negative: str):
     """Test URL class for negatives and URL.is_valid method."""
-
     pytest.skip("This test is not working as expected.")
     # TODO: the validation method URL.is_valid or the tests might need to be adjusted
 

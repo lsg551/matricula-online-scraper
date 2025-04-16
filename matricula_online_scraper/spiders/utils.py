@@ -1,9 +1,7 @@
-"""
-Utilities for the spiders
-"""
+"""Utilities for the spiders"""
 
-from typing import Tuple
 import re
+from typing import Tuple
 
 type Coordinates = Tuple[float, float]
 """[Longitude, Latitude]"""
