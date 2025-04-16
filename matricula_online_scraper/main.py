@@ -1,9 +1,7 @@
+"""CLI entry point for matricula-online-scraper."""
 #!/usr/bin/env python3
 
-"""
-CLI entry point for scraping Matricula Online.
-"""
-
+import logging
 from importlib.metadata import version as get_version
 from typing import Annotated, Optional
 
@@ -11,6 +9,7 @@ import typer
 
 from matricula_online_scraper.cli.newsfeed import app as newsfeed_app
 from matricula_online_scraper.cli.parish import app as parish_app
+from matricula_online_scraper.logging_config import LogLevel, setup_logging
 
 app = typer.Typer(
     help="""Command Line Interface (CLI) for scraping Matricula Online https://data.matricula-online.eu.
@@ -38,32 +37,84 @@ app.add_typer(
 )
 
 
-@app.callback()
 def version_callback(value: bool):
+    """Print the version of the CLI in the format `0.1.0` and exit."""
     if value:
-        version = get_version("matricula-online-scraper")
+        version_string = get_version("matricula-online-scraper")
         # remove prefix 'v'
-        if version.startswith("v"):
-            version = version[1:]
-        typer.echo(version)
+        if version_string.startswith("v"):
+            version_string = version_string[1:]
+        typer.echo(version_string, err=False)
         raise typer.Exit()
 
 
-# this will be executed when no command is called
-# i.e. `$ matricula_online_scraper`
 @app.callback()
-def callback(
+def main(  # noqa: D103
     version: Annotated[
         Optional[bool],
         typer.Option(
             "--version",
-            callback=version_callback,
             is_eager=True,
             help="Show the CLI's version.",
         ),
     ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option(
+            "--verbose",
+            "-v",
+            help="Enable verbose logging (DEBUG).",
+        ),
+    ] = False,
+    quiet: Annotated[
+        bool,
+        typer.Option(
+            "--quiet",
+            "-q",
+            help="Suppress all output (CRITICAL).",
+        ),
+    ] = False,
+    log_level: Annotated[
+        Optional[LogLevel],
+        typer.Option(
+            "--log-level",
+            "-l",
+            help="Set the logging level.",
+            hidden=True,
+        ),
+    ] = LogLevel.INFO,
+    package_logging: Annotated[
+        Optional[LogLevel],
+        typer.Option(
+            "--package-logging",
+            help="Set the logging level for 3rd-party packags.",
+            hidden=True,
+        ),
+    ] = LogLevel.CRITICAL,
 ):
-    pass
+    if version:
+        version_callback(version)
+
+    # --- initialize logging ---
+    app_logger = setup_logging(
+        log_level or LogLevel.INFO, package_logging or LogLevel.CRITICAL
+    )
+
+    # --- logging flags ---
+    if quiet and verbose:
+        raise typer.BadParameter(
+            "The --quiet and --verbose options are mutually exclusive."
+        )
+    if verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
+        app_logger.setLevel(logging.DEBUG)
+    if quiet:
+        logging.getLogger().setLevel(logging.CRITICAL)
+        app_logger.setLevel(logging.CRITICAL)
+    if log_level:
+        app_logger.setLevel(log_level.value)
+    if package_logging:
+        logging.getLogger().setLevel(package_logging.value)
 
 
 if __name__ == "__main__":
