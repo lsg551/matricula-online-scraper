@@ -1,6 +1,4 @@
-"""
-Scrapy spider to scrape church registers (= scanned church books) from Matricula Online.
-"""
+"""Scrapy spider to scrape church registers (= scanned church books) from Matricula Online."""
 
 import base64
 import json
@@ -29,7 +27,7 @@ class ChurchRegisterSpider(scrapy.Spider):
         # see the order of middleware here:  https://doc.scrapy.org/en/latest/topics/settings.html#std-setting-SPIDER_MIDDLEWARES_BASE
         # 51 is right after the built-in middleware `HttpErrorMiddleware` which handles 404s
         "ITEM_PIPELINES": {
-            "matricula_online_scraper.pipelines.images_pipeline.ImagesPipeline": 1
+            "matricula_online_scraper.pipelines.images_pipeline.CustomImagesPipeline": 1
         },
         # "EXTENSIONS": {
         #     "matricula_online_scraper.extensions.church_register.StatusTrackerExtension": 123
@@ -79,9 +77,8 @@ class ChurchRegisterSpider(scrapy.Spider):
                     raw_base64_str += "=" * (4 - missing_padding)
                 files[idx] = base64.b64decode(raw_base64_str).decode("utf-8")
             except Exception as err:
-                self.logger.error(
-                    f"Could not decode base64-encoded image URL {file}. Error {err}",
-                    exc_info=True,
+                self.logger.exception(
+                    f"Could not decode base64-encoded image URL {file}. Error {err}"
                 )
                 continue
 

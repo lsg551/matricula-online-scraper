@@ -1,14 +1,22 @@
+"""Custom image pipeline to store downloaded images.
+
+This pipeline is used to customized the path where the images are stored.
+It can be used by specifying a valid module path in the Scrapy settings.
+"""
+
 import hashlib
 import re
-import logging
 from pathlib import Path
+
 from attr import dataclass
-from scrapy.pipelines.images import ImagesPipeline
 from scrapy.http.request import Request
 from scrapy.http.response import Response
 from scrapy.item import Item
+from scrapy.pipelines.images import ImagesPipeline
 
-logger = logging.getLogger(__name__)
+from matricula_online_scraper.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 # @dataclass
@@ -64,7 +72,6 @@ def _extract_unique_id(image_url: str) -> Path:
     >>> _extract_unique_id("https://data.matricula-online.eu/en/deutschland/augsburg/aach/1-THS")
     ... "deutschland/augsburg/aach/1-THS"
     """
-
     # grab part after '.eu/de/' or '.eu/en/' until the last '/' before the query parameter or end of string
     match = re.search(r"\.eu/(?:\w+)/(.+?)(?:/|\?pg=\d+)?$", image_url)
 
@@ -105,7 +112,6 @@ def _extract_last_path_segment(image_url: str) -> str:
     >>> _extract_last_path_segment("http://hosted-images.matricula-online.eu/images/matricula/DAG/MatrikenGraz-Seckau/Ardning/6014/Taufbuch/01/1786-1830/Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004.jpg")
     ... "Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004"
     """
-
     match = re.search(r"/([^/]+)\.jpg$", image_url)
 
     if match is None:
@@ -114,8 +120,8 @@ def _extract_last_path_segment(image_url: str) -> str:
     return match.group(1)
 
 
-class ImagesPipeline(ImagesPipeline):
-    """Custom image pipelines helps to store images in a structured way (= custom paths)."""
+class CustomImagesPipeline(ImagesPipeline):
+    """Custom image pipelines to store images in a structured way (= custom paths)."""
 
     def file_path(
         self,
@@ -125,6 +131,7 @@ class ImagesPipeline(ImagesPipeline):
         *,
         item: Item | None = None,
     ):
+        """Get the full path where the image will be stored."""
         url_hash = hashlib.shake_256(request.url.encode()).hexdigest(8)
 
         # additional metadata passed to the pipeline
@@ -133,11 +140,11 @@ class ImagesPipeline(ImagesPipeline):
             return f"unknown/{url_hash}.jpg"
 
         original_url = item["original_url"]
-        path: Path
+
         try:
             path = _extract_unique_id(original_url)
         except ValueError as e:
-            logger.error(f"Could not decompose URL {original_url}: {e}", exc_info=True)
+            logger.exception(f"Could not decompose URL {original_url}: {e}")
             path = Path("unknown/")
 
         page = _extract_last_path_segment(request.url)
