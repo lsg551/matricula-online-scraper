@@ -1,12 +1,10 @@
-"""
-Common CLI Arguments and Options
-"""
+"""Common CLI Arguments and Options"""
 
-from typing import Annotated
-from pathlib import Path
 from enum import Enum
-import typer
+from pathlib import Path
+from typing import Annotated
 
+import typer
 
 # ++++++++++++++++++++++++++++++++++++++++ --silent Option ++++++++++++++++++++++++++++++++++++++++
 
