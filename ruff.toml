@@ -20,3 +20,8 @@ convention = "google"
     "D100", # Missing docstring in public module
     "D107", # Missing docstring in __init__
 ]
+# Relax docstring requirements for spiders
+"**/spiders/*.py" = [
+    "D102", # Missing docstring in public method
+    "D107", # Missing docstring in __init__
+]
