@@ -14,7 +14,6 @@ convention = "google"
 
 [lint.per-file-ignores]
 # Relax docstring requirements
-"__init__.py" = ["E402"]
 "test_*.py" = [
     "D104", # Missing docstring in public package
     "D100", # Missing docstring in public module
@@ -29,3 +28,4 @@ convention = "google"
 "**/cli/*.py" = [
     "D301", # "Use `r"""` if any backslashes in a docstring"
 ]
+"__*__.py" = ["D104", "D100", "E402"]
