@@ -1,39 +1,27 @@
-"""Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
+"""Scrapy spider to scrape Matricula Online's newsfeed."""
 
 from datetime import date, datetime
 from typing import Optional
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 import scrapy  # pylint: disable=import-error # type: ignore
+from scrapy.http.response import Response
+
+from matricula_online_scraper.logging_config import get_logger
+from matricula_online_scraper.utils.matricula_datestring import (
+    parse_matricula_datestr,
+)
+from matricula_online_scraper.utils.matricula_pagination import create_next_url
+
+logger = get_logger(__name__)
+
 
 HOST = "https://data.matricula-online.eu"
 
 
-def parse_date_str(value: str) -> date:
-    # example: "June 3, 2024" or "Dec. 19, 2023"
-    if "." in value:
-        # shorted month name
-        return datetime.strptime(value, "%b. %d, %Y").date()
-
-    # full month name
-    return datetime.strptime(value, "%B %d, %Y").date()
-
-
-def create_next_url(current: str, next_page: str) -> str:
-    current_url = urlparse(current)
-    url_parts = list(current_url)
-    query = parse_qs(current_url.query)
-
-    params = {"page": next_page}
-    query.update(params)
-
-    url_parts[4] = urlencode(query)
-    new_url = urlunparse(url_parts)
-
-    return new_url
-
-
 class NewsfeedSpider(scrapy.Spider):
+    """Scrapy spider to scrape Matricula Online's newsfeed."""
+
     name = "newsfeed"
 
     def __init__(
@@ -44,26 +32,10 @@ class NewsfeedSpider(scrapy.Spider):
         # TODO: this is not thread-safe (?), it seems to work though ... investigate
         self.counter = 0
 
-        if limit is not None and limit <= 1:
-            self.logger.error(
-                f"Parameter 'limit' must be greater than 1. Received: {limit}"
-            )
-            raise ValueError(
-                f"Parameter 'limit' must be greater than 1. Received: {limit}"
-            )
-
-        if last_n_days is not None and last_n_days <= 0:
-            self.logger.error(
-                f"Parameter 'last_n_days' must be greater than 0. Received: {last_n_days}"
-            )
-            raise ValueError(
-                f"Parameter 'last_n_days' must be greater than 0. Received: {last_n_days}"
-            )
-
         self.limit = limit
         self.last_n_days = last_n_days
 
-    def parse(self, response):
+    def parse(self, response: Response):
         items = response.css('#page-main-content div[id^="news-"]')
 
         for news_article in items:
@@ -73,18 +45,28 @@ class NewsfeedSpider(scrapy.Spider):
             self.counter += 1
 
             headline_container = news_article.css("h3")
-            headline = headline_container.css("a::text").get().strip()
+            headline = (headline_container.css("a::text").get() or "").strip()
             article_url = headline_container.css("a::attr('href')").get()
-            article_date_str = headline_container.css("small::text").get()
+            article_date_str = headline_container.css("small::text").get() or ""
+
             try:
-                article_date = parse_date_str(article_date_str)
-                if self.last_n_days is not None:
-                    today = date.today()
-                    delta = today - article_date
-                    if delta.days > self.last_n_days:
-                        continue
+                article_date = parse_matricula_datestr(article_date_str)
             except Exception as e:
-                self.logger.error(f"Failed to evaluate parameter 'last_n_days': {e}")
+                reason = (
+                    f"Failed to parse Matricula date string '{article_date_str}': {e}"
+                )
+                logger.exception(reason)
+                self.close(self, reason)
+            else:
+                # check if the article is older than the last_n_days
+                if (
+                    self.last_n_days
+                    and (delta := date.today() - article_date)
+                    and delta.days > self.last_n_days
+                ):
+                    reason = f"Article is older than {self.last_n_days} days: {article_date_str}. Breaking scrape loop."
+                    logger.debug(reason)
+                    break
 
             preview = news_article.css("p.text-justify + p::text").get()
 
@@ -95,13 +77,16 @@ class NewsfeedSpider(scrapy.Spider):
                 "url": urljoin(HOST, article_url),
             }
 
+        # queries the pagination component at the bottom of the page
+        # to find the next page, if it exists
         next_page = response.css(
             "ul.pagination li.page-item.active + li.page-item a.page-link::attr('href')"
         ).get()
 
         if next_page is not None:
+            # construct a valid url from that information
             # next_page will be a url query parameter like '?page=2'
             _, page = next_page.split("=")
             next_url = create_next_url(response.url, page)
-            self.logger.debug(f"## Next URL: {next_url}")
+            logger.debug(f"Next URL to scrape: {next_url}")
             yield response.follow(next_url, self.parse)

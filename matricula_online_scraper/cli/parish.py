@@ -1,45 +1,42 @@
-import logging
+"""`parish` command group to interact with the three primary entities of Matricula.
+
+Various subcommands allow to:
+1. `fetch` one or more church registers from a given URL (this downloads the images of the register)
+2. `list` all available parishes and their metadata
+3. `show` the available registers in a parish and their metadata
+"""
+
 import select
 import sys
 from pathlib import Path
 from typing import Annotated, List, Optional, Tuple
 
 import typer
-from rich import (
-    console,
-    print,  # pylint: disable=redefined-builtin
+from rich.console import Console
+from rich.progress import (
+    DownloadColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    TransferSpeedColumn,
 )
 from rich.text import Text
 from scrapy import crawler
+from scrapy.crawler import CrawlerRunner
+from twisted.internet import reactor
 
 from matricula_online_scraper.spiders.locations_spider import LocationsSpider
 from matricula_online_scraper.spiders.parish_registers_spider import (
     ParishRegistersSpider,
 )
+from matricula_online_scraper.utils.matricula_url import get_parish_name
 
+from ..logging_config import get_logger
 from ..spiders.church_register import ChurchRegisterSpider
-from .cli_utils.badges import Badge
-from .cli_utils.color import Color
-from .common import (
-    DEFAUL_APPEND,
-    DEFAULT_OUTPUT_FILE_FORMAT,
-    DEFAULT_SCRAPER_LOG_LEVEL,
-    DEFAULT_SCRAPER_SILENT,
-    AppendOption,
-    LogLevelOption,
-    OutputFileFormatOption,
-    OutputFileNameArgument,
-    SilentOption,
-    file_format_to_scrapy,
-)
+from ..utils.file_format import FileFormat
 
-app = typer.Typer()
-
-# from ..utils.pipeline_observer import PipelineObserver
-
-
-logger = logging.getLogger(__name__)
-stderr = console.Console(stderr=True)
+logger = get_logger(__name__)
 
 app = typer.Typer()
 
@@ -47,7 +44,7 @@ app = typer.Typer()
 @app.command()
 def fetch(
     urls: Annotated[
-        Optional[List[str]],
+        Optional[list[str]],
         typer.Argument(
             help=(
                 "One or more URLs to church register pages,"
@@ -67,81 +64,87 @@ def fetch(
             help="Directory to save the image files in.",
         ),
     ] = Path.cwd() / "church_register_images",
-    debug: Annotated[
-        bool,
-        typer.Option(
-            help="Enable debug mode for scrapy.",
-        ),
-    ] = False,
 ):
-    """(1) Download a church register.
+    """(1) Download a church register.https://docs.astral.sh/ruff/rules/escape-sequence-in-docstring.
 
-While all scanned parish registers can be opened in a web viewer,\
+    While all scanned parish registers can be opened in a web viewer,\
  for example the 7th page of this parish register: https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/01-02D/?pg=7,\
  it has no option to download a single page or the entire book. This command allows you\
  to do just that and download the entire book or a single page.
 
-\n\nExample:\n\n
-$ matricula-online-scraper parish fetch https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/01-02D/?pg=7
+    \n\nExample:\n\n
+    $ matricula-online-scraper parish fetch https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/01-02D/?pg=7
     """
-    # timeout in seconds
+    cmd_logger = logger.getChild(fetch.__name__)
+    cmd_logger.debug("Start fetching Matricula Online parish registers.")
+
+    # timeout in seconds to wait for stdin input
     TIMEOUT = 0.1
-
+    # read from stdin if no urls are provided
     if not urls:
+        cmd_logger.debug(
+            "No URLs provided via command line arguments. Reading from stdin."
+        )
         readable, _, _ = select.select([sys.stdin], [], [], TIMEOUT)
-
         if readable:
             urls = sys.stdin.read().splitlines()
         else:
-            stderr.print(
-                Badge.Error,
-                Text("No URLs provided via stdin.", style=Color.Red),
-                "Please provide at least one URL as argument or via stdin.",
-                "Use the --help flag for more information.",
+            reason = (
+                "No URLs provided via stdin."
+                " Please provide at least one URL as argument or via stdin."
+                " Use the --help flag for more information."
             )
-            raise typer.Exit(1)
+            cmd_logger.error(reason)
+            raise typer.BadParameter(reason, param_hint="urls")
 
-    # won't happen, only to satisfy the type checker
+    # only to satisfy the type checker, should never happen
     if not urls:
-        raise NotImplementedError()
+        raise NotImplementedError("No URLs provided and stdin is empty.")
 
-    # observer = PipelineObserver(start_urls=urls)
-
-    try:
-        process = crawler.CrawlerProcess(
-            settings={
-                "LOG_ENABLED": debug,
-                "LOG_LEVEL": "DEBUG" if debug else "CRITICAL",
-                "ITEM_PIPELINES": {"scrapy.pipelines.images.ImagesPipeline": 1},
-                "IMAGES_STORE": directory.resolve(),
-            }
-        )
-        process.crawl(
-            ChurchRegisterSpider,
-            # observer=observer,
-            start_urls=urls,
-        )
-        process.start()
-
-    except Exception as err:
-        raise typer.Exit(1) from err
-
-    else:
-        stderr.print(
-            Badge.Success,
-            Text("Finished scraping church register images.", style=Color.Green),
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        transient=True,
+        console=Console(stderr=True),
+    ) as progress:
+        progress.add_task(
+            "Scraping...",
+            total=len(urls),  # use the number or urls as a rough estimate
         )
 
-    # finally:
-    #     observer.update_initiator_statuses()
-    #     stderr.print(observer.start_urls)
+        try:
+            runner = CrawlerRunner(
+                settings={
+                    "ITEM_PIPELINES": {"scrapy.pipelines.images.ImagesPipeline": 1},
+                    "IMAGES_STORE": directory.resolve(),
+                }
+            )
+            crawler = runner.create_crawler(ChurchRegisterSpider)
+
+            deferred = runner.crawl(crawler, start_urls=urls)
+            deferred.addBoth(lambda _: reactor.stop())  # type: ignore
+            reactor.run()  # type: ignore  # blocks until the crawling is finished
+
+        except Exception as exception:
+            cmd_logger.exception(
+                "An error occurred while scraping Matricula Online parish registers."
+            )
+            raise typer.Exit(1) from exception
+
+    cmd_logger.info(
+        f"Done! Successfully scraped the parish registers. The output was saved to: {directory.resolve()}"
+    )
 
 
 @app.command()
 def list(
-    output_file_name: OutputFileNameArgument = Path("matricula_locations"),
-    output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
-    append: AppendOption = DEFAUL_APPEND,
+    outfile: Annotated[
+        Path,
+        typer.Argument(
+            help=f"File to which the data is written (formats: {', '.join(FileFormat)})"
+        ),
+    ] = Path("matricula_parishes.jsonl"),
     place: Annotated[
         Optional[str], typer.Option(help="Full text search for a location.")
     ] = None,
@@ -161,40 +164,47 @@ def list(
     exclude_coordinates: Annotated[
         bool,
         typer.Option(
-            "--exclude-coordinates/",
-            help="Coordinates of a parish will be included by default. Using this option will exclude coordinates from the output and speed up the scraping process.",
+            "--exclude-coordinates",
+            help=(
+                "Exclude coordinates from the output to speed up the scraping process."
+                " Coordinates will be scraped by default."
+            ),
         ),
     ] = False,
-    log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
-    silent: SilentOption = DEFAULT_SCRAPER_SILENT,
 ):
     """(2) List available parishes.
 
-Matricula has a huge list of all parishes that it possesses digitized records for.\
+    Matricula has a huge list of all parishes that it possesses digitized records for.\
  It can be directly accessed on the website: https://data.matricula-online.eu/de/bestande/
 
-This command allows you to scrape that list with all available parishes and\
+    This command allows you to scrape that list with all available parishes and\
  their metadata.
 
-\n\nExample:\n\n
-$ matricula-online-scraper parish list
+    \n\nExample:\n\n
+    $ matricula-online-scraper parish list
 
-\n\nNOTE:\n\n
-This command will take a while to run, because it fetches all parishes.\
+    \n\nNOTE:\n\n
+    This command will take a while to run, because it fetches all parishes.\
  A GitHub workflow does this once a week and caches the CSV file in the repository.\
  Preferably, you should download that file instead: https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz
     """
+    cmd_logger = logger.getChild(fetch.__name__)
+    cmd_logger.debug("Start fetching Matricula Online parishes.")
 
-    output_path_str = str(output_file_name.absolute()) + "." + output_file_format
-    output_path = Path(output_path_str)
+    try:
+        format = FileFormat(outfile.suffix[1:])
+    except Exception as e:
+        reason = f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}"
+        cmd_logger.error(reason)
+        raise typer.BadParameter(reason, param_hint="outfile")
 
-    # check if output file already exists
-    if output_path.exists() and not append:
-        print(
-            f"[red]Output file already exists: {output_path.absolute()}."
-            " Use the option '--append' if you want to append to the file.[/red]"
+    if outfile.exists():
+        reason = (
+            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
+            " Will not overwrite it. Delete the file or choose a different path. Aborting."
         )
-        raise typer.Exit()
+        cmd_logger.error(reason)
+        raise typer.BadParameter(reason, param_hint="outfile")
 
     # all search parameters are unused => fetching everything takes some time
     if (
@@ -204,97 +214,115 @@ This command will take a while to run, because it fetches all parishes.\
         and date_filter is False
         and date_range is None
     ):
-        print(
-            "[yellow]No search parameters provided. Fetching all available locations."
-            "This might take some time.[/yellow]"
+        cmd_logger.warning(
+            "No search parameters were provided to restrict the search."
+            " Fetching all available locations. This might take some time."
         )
 
-    try:
-        process = crawler.CrawlerProcess(
-            settings={
-                "FEEDS": {
-                    str(output_path.absolute()): {
-                        "format": file_format_to_scrapy(output_file_format)
-                    }
-                },
-                "LOG_LEVEL": log_level,
-                "LOG_ENABLED": not silent,
-            },
-        )
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        transient=True,
+        console=Console(stderr=True),
+    ) as progress:
+        progress.add_task("Scraping...", total=None)
 
-        process.crawl(  # type: ignore
-            LocationsSpider,
-            place=place or "",
-            diocese=diocese,
-            date_filter=date_filter,
-            date_range=date_range or (0, 9999),
-            include_coordinates=not exclude_coordinates,
-        )
-        process.start()
+        try:
+            runner = CrawlerRunner(
+                settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
+            )
 
-        print(
-            "[green]Scraping completed successfully. "
-            f"Output saved to: {output_path.absolute()}[/green]"
-        )
+            crawler = runner.create_crawler(LocationsSpider)
 
-    except Exception as exception:
-        print("[red]An unknown error occurred while scraping.[/red]")
-        raise typer.Exit(code=1) from exception
+            deferred = runner.crawl(
+                crawler,
+                place=place or "",
+                diocese=diocese,
+                date_filter=date_filter,
+                date_range=date_range or (0, 9999),
+                include_coordinates=not exclude_coordinates,
+            )
+            deferred.addBoth(lambda _: reactor.stop())  # type: ignore
+            reactor.run()  # type: ignore  # blocks until the crawling is finished
+
+        except Exception as exception:
+            cmd_logger.exception(
+                "An error occurred while scraping Matricula Online parishes."
+            )
+            raise typer.Exit(code=1) from exception
+
+    cmd_logger.info(
+        f"Done! Successfully scraped the parish list. The output was saved to: {outfile.resolve()}"
+    )
 
 
 @app.command()
 def show(
-    url: Annotated[
+    parish: Annotated[
         str,
-        typer.Argument(help=("Parish URL to show available registers for.")),
+        typer.Option(help=("Parish URL to show available registers for.")),
     ],
-    output_file_name: OutputFileNameArgument = Path("matricula-newsfeed"),
-    output_file_format: OutputFileFormatOption = DEFAULT_OUTPUT_FILE_FORMAT,
-    append: AppendOption = DEFAUL_APPEND,
-    log_level: LogLevelOption = DEFAULT_SCRAPER_LOG_LEVEL,
-    silent: SilentOption = DEFAULT_SCRAPER_SILENT,
+    outfile: Annotated[
+        Optional[Path],
+        typer.Argument(
+            help=(
+                f"File to which the data is written (formats: {', '.join(FileFormat)})."
+                r" Default is `matricula_parish_{name}.jsonl`."
+            ),
+            show_default=False,
+        ),
+    ] = None,
 ):
     """(3) Show available registers in a parish and their metadata.
 
-Each parish on Matricula has its own page, which lists all available registers\
+    Each parish on Matricula has its own page, which lists all available registers\
  and their metadata as well as some information about the parish itself.
 
-\n\nExample:\n\n
-$ matricula-online-scraper parish show https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/
+    \n\nExample:\n\n
+    $ matricula-online-scraper parish show https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/
     """
+    cmd_logger = logger.getChild(fetch.__name__)
+    cmd_logger.debug("Start fetching Matricula Online parish.")
 
-    output_path_str = str(output_file_name.absolute()) + "." + output_file_format
-    output_path = Path(output_path_str)
-
-    # check if output file already exists
-    if output_path.exists() and not append:
-        print(
-            f"[red]Output file already exists: {output_path.absolute()}."
-            " Use the option '--append' if you want to append to the file.[/red]"
+    if not outfile or outfile == "":
+        outfile = Path(f"matricula_parish_{get_parish_name(parish)}.jsonl")
+        cmd_logger.debug(
+            f"No outfile provided. Using constructed default name: {outfile.resolve()}"
         )
-        raise typer.Exit()
 
     try:
-        process = crawler.CrawlerProcess(
-            settings={
-                "FEEDS": {
-                    str(output_path.absolute()): {
-                        "format": file_format_to_scrapy(output_file_format)
-                    }
-                },
-                "LOG_LEVEL": log_level,
-                "LOG_ENABLED": not silent,
-            }
+        format = FileFormat(outfile.suffix[1:])
+    except Exception as e:
+        reason = f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}"
+        cmd_logger.error(reason)
+        raise typer.BadParameter(reason, param_hint="outfile")
+
+    if outfile.exists():
+        reason = (
+            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
+            " Will not overwrite it. Delete the file or choose a different path. Aborting."
+        )
+        cmd_logger.error(reason)
+        raise typer.BadParameter(reason, param_hint="outfile")
+
+    try:
+        runner = CrawlerRunner(
+            settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
         )
 
-        process.crawl(ParishRegistersSpider, start_urls=[url])  # type: ignore
-        process.start()
+        crawler = runner.create_crawler(ParishRegistersSpider)
 
-        print(
-            "[green]Scraping completed successfully. "
-            f"Output saved to: {output_path.absolute()}[/green]"
-        )
+        deferred = runner.crawl(crawler, start_urls=[parish])
+        deferred.addBoth(lambda _: reactor.stop())  # type: ignore
+        reactor.run()  # type: ignore  # blocks until the crawling is finished
 
     except Exception as exception:
-        print("[red]An unknown error occurred while scraping.[/red]")
+        cmd_logger.exception(
+            "An error occurred while scraping Matricula Online's newsfeed."
+        )
         raise typer.Exit(code=1) from exception
+
+    cmd_logger.info(
+        f"Done! Successfully scraped the parish. The output was saved to: {outfile.resolve()}"
+    )
