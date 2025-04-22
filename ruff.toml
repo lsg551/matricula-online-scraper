@@ -25,3 +25,7 @@ convention = "google"
     "D102", # Missing docstring in public method
     "D107", # Missing docstring in __init__
 ]
+# Relax docstring requirements for CLI apps
+"**/cli/*.py" = [
+    "D301", # "Use `r"""` if any backslashes in a docstring"
+]
