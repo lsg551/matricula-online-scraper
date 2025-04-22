@@ -1,29 +1,19 @@
-"""
-Scrapy spider to scrape parish registers from a specific location from Matricula Online.
-"""
+"""Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
 from typing import Dict, List
+from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
+
 import scrapy  # pylint: disable=import-error # type: ignore
-from urllib.parse import urlencode, urlparse, parse_qs, urljoin, urlunparse
+from scrapy.http.response import Response
+
+from matricula_online_scraper.utils.matricula_pagination import create_next_url
 
 HOST = "https://data.matricula-online.eu"
 
 
-def create_next_url(current: str, next_page: str) -> str:
-    current_url = urlparse(current)
-    url_parts = list(current_url)
-    query = parse_qs(current_url.query)
-
-    params = {"page": next_page}
-    query.update(params)
-
-    url_parts[4] = urlencode(query)
-    new_url = urlunparse(url_parts)
-
-    return new_url
-
-
 class ParishRegistersSpider(scrapy.Spider):
+    """Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
+
     name = "parish_registers"
     start_urls = [
         "https://data.matricula-online.eu/en/deutschland/muenster/0-status-animarum/",
@@ -33,7 +23,7 @@ class ParishRegistersSpider(scrapy.Spider):
         super().__init__(**kwargs)
         self.start_urls = start_urls
 
-    def parse(self, response):
+    def parse(self, response: Response):
         items = response.css("div.table-responsive tr")
 
         # in some cases a parish's page is left blank intentionally
