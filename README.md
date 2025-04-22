@@ -137,3 +137,10 @@ Run `matricula-online-scraper parish show --help` to see all available options.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 for details.
+
+You can read more about Matricula Online's terms of use and data licenses
+[on their page](https://data.matricula-online.eu/en/nutzungsbedingungen/) or
+check out their `robots.txt` file at
+[data.matricula-online.eu/robots.txt](https://data.matricula-online.eu/robots.txt)
+regarding restrictions of the use of automated tools (as of March 2025, they
+have none).
