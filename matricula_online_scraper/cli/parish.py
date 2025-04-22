@@ -216,7 +216,10 @@ def list(
     ):
         cmd_logger.warning(
             "No search parameters were provided to restrict the search."
-            " Fetching all available locations. This might take some time."
+            " This will create a list with all available parishes."
+            " To avoid lengthy scraping times, use --exclude-coordinates to speed up the process"
+            " or download the cached CSV file from the repository:"
+            " https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz"
         )
 
     with Progress(
