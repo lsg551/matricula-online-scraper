@@ -1,0 +1,31 @@
+# see https://docs.astral.sh/ruff/configuration/
+
+fix = true
+target-version = "py313"
+
+lint.select = ["D"]
+lint.extend-select = ["I"]
+
+[lint.isort]
+combine-as-imports = true
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.per-file-ignores]
+# Relax docstring requirements
+"test_*.py" = [
+    "D104", # Missing docstring in public package
+    "D100", # Missing docstring in public module
+    "D107", # Missing docstring in __init__
+]
+# Relax docstring requirements for spiders
+"**/spiders/*.py" = [
+    "D102", # Missing docstring in public method
+    "D107", # Missing docstring in __init__
+]
+# Relax docstring requirements for CLI apps
+"**/cli/*.py" = [
+    "D301", # "Use `r"""` if any backslashes in a docstring"
+]
+"__*__.py" = ["D104", "D100", "E402"]

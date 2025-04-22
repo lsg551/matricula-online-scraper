@@ -1,10 +1,10 @@
-"""
-Scrapy spider to scrape locations from Matricula Online.
-"""
+"""Scrapy spider to scrape locations from Matricula Online."""
 
-from urllib.parse import urljoin
 from typing import Tuple, TypedDict
+from urllib.parse import urljoin
+
 import scrapy  # pylint: disable=import-error # type: ignore
+
 from .utils import extract_coordinates
 
 HOST = "https://data.matricula-online.eu"
@@ -12,8 +12,7 @@ SCRAPE_ROUTE = "https://data.matricula-online.eu/en/suchen/"
 
 
 class Location(TypedDict):
-    """
-    A location of data in question with its country, region, parish name and URL.
+    """A location of data in question with its country, region, parish name and URL.
 
     Note that the data is inconsistent (except 'url' and 'country').
     Single fields may contain multiple values, such as annotations or alternative names.
@@ -35,6 +34,8 @@ class Location(TypedDict):
 
 
 class LocationsSpider(scrapy.Spider):
+    """Scrapy spider to scrape locations from Matricula Online."""
+
     name = "locations"
 
     def __init__(
