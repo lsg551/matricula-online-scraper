@@ -1,4 +1,4 @@
-"""Utilities for the spiders"""
+"""Utilities for the spiders."""
 
 import re
 from typing import Tuple

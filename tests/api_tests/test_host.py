@@ -26,4 +26,5 @@ def test_location_search():
 
 
 def test_parish_page():
+    """Check that the parish page works."""
     pytest.skip("Not implemented yet.")

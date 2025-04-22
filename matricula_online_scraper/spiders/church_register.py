@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 # overrides the default so we can pass custom metadata to the pipeline
 class ChurchRegisterDownloadItem(scrapy.Item):
+    """Item to store the URLs of the images to be downloaded."""
+
     image_urls = scrapy.Field()
     images = scrapy.Field()
     # --- custom fields ---
@@ -21,6 +23,8 @@ class ChurchRegisterDownloadItem(scrapy.Item):
 
 
 class ChurchRegisterSpider(scrapy.Spider):
+    """Scrapy spider to scrape church registers (= scanned church books) from Matricula Online."""
+
     name = "church_register"
 
     custom_settings = {

@@ -1,4 +1,4 @@
-"""Test $ matricula-online-scraper fetch …"""
+"""Test $ matricula-online-scraper fetch … ."""
 
 from typer.testing import CliRunner
 
@@ -30,6 +30,7 @@ def test_fetch_command_help():
 
 
 def test_fetch_location_command():
+    """Check that the fetch location command is callable but errors without any arguments or options."""
     # this should error bc an argument is missing
     result = runner.invoke(app, ["fetch", "location"])
 
@@ -41,4 +42,5 @@ def test_fetch_location_command():
 
 
 def test_fetch_parish_command():
+    """Check that the fetch parish command is callable but errors without any arguments or options."""
     pass

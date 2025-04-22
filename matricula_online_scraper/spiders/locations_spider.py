@@ -34,6 +34,8 @@ class Location(TypedDict):
 
 
 class LocationsSpider(scrapy.Spider):
+    """Scrapy spider to scrape locations from Matricula Online."""
+
     name = "locations"
 
     def __init__(
