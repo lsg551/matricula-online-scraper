@@ -261,7 +261,7 @@ def list(
 def show(
     parish: Annotated[
         str,
-        typer.Option(help=("Parish URL to show available registers for.")),
+        typer.Argument(help=("Parish URL to show available registers for.")),
     ],
     outfile: Annotated[
         Optional[Path],
