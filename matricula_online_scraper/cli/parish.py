@@ -63,7 +63,7 @@ def fetch(
             "-d",
             help="Directory to save the image files in.",
         ),
-    ] = Path.cwd() / "church_register_images",
+    ] = Path.cwd() / "parish_register_images",
 ):
     """(1) Download a church register.https://docs.astral.sh/ruff/rules/escape-sequence-in-docstring.
 
