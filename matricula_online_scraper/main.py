@@ -21,7 +21,7 @@ You can use this tool to scrape the three primary entities from Matricula:\n
 """,
     no_args_is_help=True,
     epilog=(
-        """Attach the --help flag to any subcommand for further help and to see its options.
+        """Attach the --help flag to any subcommand for further help and to see its options. Press CTRL+C to exit at any time.\n
 \nSee https://github.com/lsg551/matricula-online-scraper for more information."""
     ),
 )
