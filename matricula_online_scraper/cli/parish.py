@@ -326,22 +326,31 @@ def show(
             param_hint="outfile",
         )
 
-    try:
-        runner = CrawlerRunner(
-            settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
-        )
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        TimeElapsedColumn(),
+        transient=True,
+        console=Console(stderr=True),
+    ) as progress:
+        progress.add_task("Scraping...", total=None)
 
-        crawler = runner.create_crawler(ParishRegistersSpider)
+        try:
+            runner = CrawlerRunner(
+                settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
+            )
 
-        deferred = runner.crawl(crawler, start_urls=[parish])
-        deferred.addBoth(lambda _: reactor.stop())  # type: ignore
-        reactor.run()  # type: ignore  # blocks until the crawling is finished
+            crawler = runner.create_crawler(ParishRegistersSpider)
 
-    except Exception as exception:
-        cmd_logger.exception(
-            "An error occurred while scraping Matricula Online's newsfeed."
-        )
-        raise typer.Exit(code=1) from exception
+            deferred = runner.crawl(crawler, start_urls=[parish])
+            deferred.addBoth(lambda _: reactor.stop())  # type: ignore
+            reactor.run()  # type: ignore  # blocks until the crawling is finished
+
+        except Exception as exception:
+            cmd_logger.exception(
+                "An error occurred while scraping Matricula Online's newsfeed."
+            )
+            raise typer.Exit(code=1) from exception
 
     cmd_logger.info(
         f"Done! Successfully scraped the parish. The output was saved to: {outfile.resolve()}"
