@@ -4,7 +4,7 @@ version = "0.6.0"
 description = "Command Line Interface tool for scraping Matricula Online https://data.matricula-online.eu."
 authors = [{ name = "Luis Schulte", email = "git@luisschulte.com" }]
 license = { text = "MIT" }
-requires-python = ">=3.13"
+requires-python = ">=3.12"
 readme = "README.md"
 keywords = ["matricula-online", "matricula", "scraper", "parish-registers"]
 classifiers = [
