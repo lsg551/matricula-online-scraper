@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["matricula-online", "matricula", "scraper", "parish-registers"]
 classifiers = [
     "Environment :: Console",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Framework :: Scrapy",
 ]
 dependencies = ["pillow>=11.1.0", "scrapy<3.0.0,>=2.11.1", "typer<1.0.0,>=0.15"]
