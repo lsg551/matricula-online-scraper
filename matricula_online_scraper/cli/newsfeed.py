@@ -31,16 +31,22 @@ app = typer.Typer()
 def fetch(
     outfile: Annotated[
         Path,
-        typer.Argument(
-            help=f"File to which the data is written (formats: {', '.join(FileFormat)})"
+        typer.Option(
+            "-o",
+            "--outfile",
+            help=f"File to which the data is written (formats: {', '.join(FileFormat)})",
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+            # allow_dash=True, # TODO: see issue #75
         ),
     ] = Path("matricula_news.jsonl"),
     # options
     last_n_days: Annotated[
         Optional[int],
         typer.Option(
-            "--days",
-            help="Scrape news from the last n days (including today).",
+            "--days", help="Scrape news from the last n days (including today).", min=1
         ),
     ] = None,
     limit: Annotated[
@@ -49,7 +55,8 @@ def fetch(
             help=(
                 "Limit the number of max news articles to scrape"
                 "(note that this is a upper bound, it might be less depending on other parameters)."
-            )
+            ),
+            min=1,
         ),
     ] = 100,
 ):
@@ -65,29 +72,19 @@ def fetch(
     try:
         format = FileFormat(outfile.suffix[1:])
     except Exception as e:
-        reason = f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}"
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="outfile")
+        raise typer.BadParameter(
+            f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
+            param_hint="outfile",
+        )
 
+    # seems like this is not handled by typer even if suggested through `exists=False`
+    # maybe only `exists=True` has meaning and is checked
     if outfile.exists():
-        reason = (
+        raise typer.BadParameter(
             f"A file with the same path as the outfile already exists: {outfile.resolve()}."
-            " Will not overwrite it. Delete the file or choose a different path. Aborting."
+            " Will not overwrite it. Delete the file or choose a different path. Aborting.",
+            param_hint="outfile",
         )
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="outfile")
-
-    if limit and limit <= 0:
-        reason = f"Parameter '--limit' must be greater than 0, but received: {limit}"
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="--limit")
-
-    if last_n_days and last_n_days <= 0:
-        reason = (
-            f"Parameter '--days' must be greater than 0, but received: {last_n_days}"
-        )
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="--days")
 
     with Progress(
         SpinnerColumn(),

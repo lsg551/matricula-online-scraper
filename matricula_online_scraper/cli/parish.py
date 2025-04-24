@@ -59,9 +59,13 @@ def fetch(
     directory: Annotated[
         Path,
         typer.Option(
-            "--directory",
-            "-d",
+            "--outdirectory",
+            "-o",
             help="Directory to save the image files in.",
+            file_okay=False,
+            dir_okay=True,
+            resolve_path=True,
+            # allow_dash=True, # see issue #75
         ),
     ] = Path.cwd() / "parish_register_images",
 ):
@@ -82,20 +86,15 @@ def fetch(
     TIMEOUT = 0.1
     # read from stdin if no urls are provided
     if not urls:
-        cmd_logger.debug(
-            "No URLs provided via command line arguments. Reading from stdin."
-        )
         readable, _, _ = select.select([sys.stdin], [], [], TIMEOUT)
         if readable:
             urls = sys.stdin.read().splitlines()
         else:
-            reason = (
-                "No URLs provided via stdin."
-                " Please provide at least one URL as argument or via stdin."
-                " Use the --help flag for more information."
+            raise typer.BadParameter(
+                "No URLs provided via terminal or STDIN."
+                " Please provide at least one URL as an argument or via stdin.",
+                param_hint="urls",
             )
-            cmd_logger.error(reason)
-            raise typer.BadParameter(reason, param_hint="urls")
 
     # only to satisfy the type checker, should never happen
     if not urls:
@@ -141,8 +140,15 @@ def fetch(
 def list(
     outfile: Annotated[
         Path,
-        typer.Argument(
-            help=f"File to which the data is written (formats: {', '.join(FileFormat)})"
+        typer.Option(
+            "-o",
+            "--outfile",
+            help=f"File to which the data is written (formats: {', '.join(FileFormat)})",
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+            # allow_dash=True, # TODO: see issue #75
         ),
     ] = Path("matricula_parishes.jsonl"),
     place: Annotated[
@@ -151,7 +157,8 @@ def list(
     diocese: Annotated[
         Optional[int],
         typer.Option(
-            help="Enum value of the diocese. (See their website for the list of dioceses.)"
+            help="Enum value of the diocese. (See their website for the list of dioceses.)",
+            min=0,
         ),
     ] = None,
     date_filter: Annotated[
@@ -194,17 +201,19 @@ def list(
     try:
         format = FileFormat(outfile.suffix[1:])
     except Exception as e:
-        reason = f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}"
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="outfile")
-
-    if outfile.exists():
-        reason = (
-            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
-            " Will not overwrite it. Delete the file or choose a different path. Aborting."
+        raise typer.BadParameter(
+            f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
+            param_hint="outfile",
         )
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="outfile")
+
+    # seems like this is not handled by typer even if suggested through `exists=False`
+    # maybe only `exists=True` has meaning and is checked
+    if outfile.exists():
+        raise typer.BadParameter(
+            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
+            " Will not overwrite it. Delete the file or choose a different path. Aborting.",
+            param_hint="outfile",
+        )
 
     # all search parameters are unused => fetching everything takes some time
     if (
@@ -214,6 +223,7 @@ def list(
         and date_filter is False
         and date_range is None
     ):
+        # TODO: prompt the user before continuing, add option -y,--yes to skip
         cmd_logger.warning(
             "No search parameters were provided to restrict the search."
             " This will create a list with all available parishes."
@@ -268,12 +278,19 @@ def show(
     ],
     outfile: Annotated[
         Optional[Path],
-        typer.Argument(
+        typer.Option(
+            "-o",
+            "--outfile",
             help=(
                 f"File to which the data is written (formats: {', '.join(FileFormat)})."
                 r" Default is `matricula_parish_{name}.jsonl`."
             ),
             show_default=False,
+            exists=False,
+            file_okay=True,
+            dir_okay=False,
+            resolve_path=True,
+            # allow_dash=True, # TODO: see issue #75
         ),
     ] = None,
 ):
@@ -297,17 +314,17 @@ def show(
     try:
         format = FileFormat(outfile.suffix[1:])
     except Exception as e:
-        reason = f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}"
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="outfile")
+        raise typer.BadParameter(
+            f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
+            param_hint="outfile",
+        )
 
     if outfile.exists():
-        reason = (
+        raise typer.BadParameter(
             f"A file with the same path as the outfile already exists: {outfile.resolve()}."
-            " Will not overwrite it. Delete the file or choose a different path. Aborting."
+            " Will not overwrite it. Delete the file or choose a different path. Aborting.",
+            param_hint="outfile",
         )
-        cmd_logger.error(reason)
-        raise typer.BadParameter(reason, param_hint="outfile")
 
     try:
         runner = CrawlerRunner(
