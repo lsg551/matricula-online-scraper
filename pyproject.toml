@@ -13,6 +13,7 @@ classifiers = [
     "Framework :: Scrapy",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
 ]
 dependencies = ["pillow>=11.1.0", "scrapy<3.0.0,>=2.11.1", "typer<1.0.0,>=0.15"]
 
