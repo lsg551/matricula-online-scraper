@@ -9,20 +9,16 @@ Various subcommands allow to:
 import select
 import sys
 from pathlib import Path
-from typing import Annotated, List, Optional, Tuple
+from typing import Annotated, Optional, Tuple
 
 import typer
 from rich.console import Console
 from rich.progress import (
-    DownloadColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
     TimeElapsedColumn,
-    TransferSpeedColumn,
 )
-from rich.text import Text
-from scrapy import crawler
 from scrapy.crawler import CrawlerRunner
 from twisted.internet import reactor
 
@@ -47,12 +43,11 @@ def fetch(
         Optional[list[str]],
         typer.Argument(
             help=(
-                "One or more URLs to church register pages,"
-                " for example https://data.matricula-online.eu/de/deutschland/augsburg/aach/1-THS/"
-                " '/1-THS' is the identifier of one church register from Aach, a parish in Augsburg, Germany."
-                " Note that the parameter '?pg=1' may or may not be included in the URL."
-                " It will by ignored anyway, because it does not alter the behavior of the scraper."
-                " If no URL is provided, this argument is expected to be read from stdin."
+                "One or more URLs to church register pages."
+                " The parameter '?pg=1' may or may not be included in the URL."
+                " If no URL is provided, read from STDIN."
+                # NOTE: It will block until EOF is reached or the pipeline is closed
+                # because all data must be gathered from STDIN before proceeding
             )
         ),
     ] = None,
@@ -65,7 +60,6 @@ def fetch(
             file_okay=False,
             dir_okay=True,
             resolve_path=True,
-            # allow_dash=True, # see issue #75
         ),
     ] = Path.cwd() / "parish_register_images",
 ):
@@ -82,23 +76,16 @@ def fetch(
     cmd_logger = logger.getChild(fetch.__name__)
     cmd_logger.debug("Start fetching Matricula Online parish registers.")
 
-    # timeout in seconds to wait for stdin input
-    TIMEOUT = 0.1
     # read from stdin if no urls are provided
     if not urls:
-        readable, _, _ = select.select([sys.stdin], [], [], TIMEOUT)
-        if readable:
-            urls = sys.stdin.read().splitlines()
-        else:
-            raise typer.BadParameter(
-                "No URLs provided via terminal or STDIN."
-                " Please provide at least one URL as an argument or via stdin.",
-                param_hint="urls",
-            )
+        urls = sys.stdin.read().splitlines()
 
-    # only to satisfy the type checker, should never happen
     if not urls:
-        raise NotImplementedError("No URLs provided and stdin is empty.")
+        raise typer.BadParameter(
+            "No URLs provided via terminal or STDIN."
+            " Please provide one or more URLs as arguments or via stdin.",
+            param_hint="urls",
+        )
 
     with Progress(
         SpinnerColumn(),
@@ -143,12 +130,15 @@ def list(
         typer.Option(
             "-o",
             "--outfile",
-            help=f"File to which the data is written (formats: {', '.join(FileFormat)})",
+            help=(
+                f"File to which the data is written (formats: {', '.join(FileFormat)})"
+                " Use '-' to write to STDOUT."
+            ),
             exists=False,
             file_okay=True,
             dir_okay=False,
             resolve_path=True,
-            # allow_dash=True, # TODO: see issue #75
+            allow_dash=True,  # use '-' to write to stdout
         ),
     ] = Path("matricula_parishes.jsonl"),
     place: Annotated[
@@ -178,6 +168,14 @@ def list(
             ),
         ),
     ] = False,
+    skip_prompt: Annotated[
+        bool,
+        typer.Option(
+            "--yes",
+            "-y",
+            help="Skip any prompt with YES.",
+        ),
+    ] = False,
 ):
     """(2) List available parishes.
 
@@ -198,22 +196,30 @@ def list(
     cmd_logger = logger.getChild(fetch.__name__)
     cmd_logger.debug("Start fetching Matricula Online parishes.")
 
-    try:
-        format = FileFormat(outfile.suffix[1:])
-    except Exception as e:
-        raise typer.BadParameter(
-            f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
-            param_hint="outfile",
-        )
+    use_stdout = outfile == Path("-")
+    feed: dict[str, dict[str, str]]
 
-    # seems like this is not handled by typer even if suggested through `exists=False`
-    # maybe only `exists=True` has meaning and is checked
-    if outfile.exists():
-        raise typer.BadParameter(
-            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
-            " Will not overwrite it. Delete the file or choose a different path. Aborting.",
-            param_hint="outfile",
-        )
+    if use_stdout:
+        feed = {"stdout:": {"format": "jsonlines"}}
+    else:
+        try:
+            format = FileFormat(outfile.suffix[1:])
+        except Exception as e:
+            raise typer.BadParameter(
+                f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
+                param_hint="outfile",
+            )
+
+        # seems like this is not handled by typer even if suggested through `exists=False`
+        # maybe only `exists=True` has meaning and is checked
+        if outfile.exists():
+            raise typer.BadParameter(
+                f"A file with the same path as the outfile already exists: {outfile.resolve()}."
+                " Will not overwrite it. Delete the file or choose a different path. Aborting.",
+                param_hint="outfile",
+            )
+
+        feed = {str(outfile): {"format": format.to_scrapy()}}
 
     # all search parameters are unused => fetching everything takes some time
     if (
@@ -223,7 +229,6 @@ def list(
         and date_filter is False
         and date_range is None
     ):
-        # TODO: prompt the user before continuing, add option -y,--yes to skip
         cmd_logger.warning(
             "No search parameters were provided to restrict the search."
             " This will create a list with all available parishes."
@@ -231,6 +236,13 @@ def list(
             " or download the cached CSV file from the repository:"
             " https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz"
         )
+        if not skip_prompt:
+            typer.confirm(
+                "Are you sure you want to proceed scraping without any filters?",
+                default=True,
+                abort=True,
+                err=True,
+            )
 
     with Progress(
         SpinnerColumn(),
@@ -242,12 +254,8 @@ def list(
         progress.add_task("Scraping...", total=None)
 
         try:
-            runner = CrawlerRunner(
-                settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
-            )
-
+            runner = CrawlerRunner(settings={"FEEDS": feed})
             crawler = runner.create_crawler(LocationsSpider)
-
             deferred = runner.crawl(
                 crawler,
                 place=place or "",
@@ -266,16 +274,21 @@ def list(
             raise typer.Exit(code=1) from exception
 
     cmd_logger.info(
-        f"Done! Successfully scraped the parish list. The output was saved to: {outfile.resolve()}"
+        f"Done! Successfully scraped the parish list."
+        + (f" The output was saved to: {outfile.resolve()}" if not use_stdout else "")
     )
 
 
 @app.command()
 def show(
     parish: Annotated[
-        str,
-        typer.Argument(help=("Parish URL to show available registers for.")),
-    ],
+        Optional[str],
+        typer.Argument(
+            help=(
+                "Parish URL to scrape available registers and metadata for. Reads from STDIN if not provided."
+            )
+        ),
+    ] = None,
     outfile: Annotated[
         Optional[Path],
         typer.Option(
@@ -283,6 +296,7 @@ def show(
             "--outfile",
             help=(
                 f"File to which the data is written (formats: {', '.join(FileFormat)})."
+                " Use '-' to write to STDOUT."
                 r" Default is `matricula_parish_{name}.jsonl`."
             ),
             show_default=False,
@@ -290,7 +304,7 @@ def show(
             file_okay=True,
             dir_okay=False,
             resolve_path=True,
-            # allow_dash=True, # TODO: see issue #75
+            allow_dash=True,  # use '-' to write to stdout
         ),
     ] = None,
 ):
@@ -305,26 +319,50 @@ def show(
     cmd_logger = logger.getChild(fetch.__name__)
     cmd_logger.debug("Start fetching Matricula Online parish.")
 
-    if not outfile or outfile == "":
-        outfile = Path(f"matricula_parish_{get_parish_name(parish)}.jsonl")
+    # read from stdin if no parish is provided
+    if not parish:
         cmd_logger.debug(
-            f"No outfile provided. Using constructed default name: {outfile.resolve()}"
+            f"Reading from STDIN as no argument for 'parish' was provided."
+        )
+        parish = sys.stdin.read().strip()
+
+    if not parish:
+        raise typer.BadParameter(
+            "No parish URL provided via terminal or STDIN."
+            " Please provide a parish URL as an argument or via STDIN.",
+            param_hint="parish",
         )
 
-    try:
-        format = FileFormat(outfile.suffix[1:])
-    except Exception as e:
-        raise typer.BadParameter(
-            f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
-            param_hint="outfile",
-        )
+    use_stdout = outfile == Path("-")
+    feed: dict[str, dict[str, str]]
 
-    if outfile.exists():
-        raise typer.BadParameter(
-            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
-            " Will not overwrite it. Delete the file or choose a different path. Aborting.",
-            param_hint="outfile",
-        )
+    if use_stdout:
+        feed = {"stdout:": {"format": "jsonlines"}}
+    else:
+        if not outfile or outfile == "":
+            outfile = Path(f"matricula_parish_{get_parish_name(parish)}.jsonl")
+            cmd_logger.debug(
+                f"No outfile provided. Using constructed default name: {outfile.resolve()}"
+            )
+
+        try:
+            format = FileFormat(outfile.suffix[1:])
+        except Exception as e:
+            raise typer.BadParameter(
+                f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
+                param_hint="outfile",
+            )
+
+        # seems like this is not handled by typer even if suggested through `exists=False`
+        # maybe only `exists=True` has meaning and is checked
+        if outfile.exists():
+            raise typer.BadParameter(
+                f"A file with the same path as the outfile already exists: {outfile.resolve()}."
+                " Will not overwrite it. Delete the file or choose a different path. Aborting.",
+                param_hint="outfile",
+            )
+
+        feed = {str(outfile): {"format": format.to_scrapy()}}
 
     with Progress(
         SpinnerColumn(),
@@ -336,9 +374,7 @@ def show(
         progress.add_task("Scraping...", total=None)
 
         try:
-            runner = CrawlerRunner(
-                settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
-            )
+            runner = CrawlerRunner(settings={"FEEDS": feed})
 
             crawler = runner.create_crawler(ParishRegistersSpider)
 
@@ -353,5 +389,6 @@ def show(
             raise typer.Exit(code=1) from exception
 
     cmd_logger.info(
-        f"Done! Successfully scraped the parish. The output was saved to: {outfile.resolve()}"
+        f"Done! Successfully scraped the parish."
+        + (f" The output was saved to: {outfile.resolve()}" if not use_stdout else "")  # type: ignore
     )

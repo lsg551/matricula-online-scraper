@@ -3,16 +3,13 @@
 from pathlib import Path
 from typing import Annotated, Optional
 
-import scrapy.signals
 import typer
 from rich.console import Console
 from rich.progress import (
-    DownloadColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
     TimeElapsedColumn,
-    TransferSpeedColumn,
 )
 from scrapy.crawler import CrawlerRunner
 from twisted.internet import reactor
@@ -34,12 +31,15 @@ def fetch(
         typer.Option(
             "-o",
             "--outfile",
-            help=f"File to which the data is written (formats: {', '.join(FileFormat)})",
+            help=(
+                f"File to which the data is written (formats: {', '.join(FileFormat)})."
+                " Use '-' to write to stdout."
+            ),
             exists=False,
             file_okay=True,
             dir_okay=False,
             resolve_path=True,
-            # allow_dash=True, # TODO: see issue #75
+            allow_dash=True,  # use '-' to write to stdout
         ),
     ] = Path("matricula_news.jsonl"),
     # options
@@ -67,24 +67,31 @@ def fetch(
  This command will download the entire newsfeed or a limited number of news articles.
     """
     cmd_logger = logger.getChild(fetch.__name__)
-    cmd_logger.debug("Start fetching Matricula Online's newsfeed.")
 
-    try:
-        format = FileFormat(outfile.suffix[1:])
-    except Exception as e:
-        raise typer.BadParameter(
-            f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
-            param_hint="outfile",
-        )
+    use_stdout = outfile == Path("-")
+    feed: dict[str, dict[str, str]]
 
-    # seems like this is not handled by typer even if suggested through `exists=False`
-    # maybe only `exists=True` has meaning and is checked
-    if outfile.exists():
-        raise typer.BadParameter(
-            f"A file with the same path as the outfile already exists: {outfile.resolve()}."
-            " Will not overwrite it. Delete the file or choose a different path. Aborting.",
-            param_hint="outfile",
-        )
+    if use_stdout:
+        feed = {"stdout:": {"format": "jsonlines"}}
+    else:
+        try:
+            format = FileFormat(outfile.suffix[1:])
+        except Exception as e:
+            raise typer.BadParameter(
+                f"Invalid file format: '{outfile.suffix[1:]}'. Allowed file formats are: {', '.join(FileFormat)}",
+                param_hint="outfile",
+            )
+
+        # seems like this is not handled by typer even if suggested through `exists=False`
+        # maybe only `exists=True` has meaning and is checked
+        if outfile.exists():
+            raise typer.BadParameter(
+                f"A file with the same path as the outfile already exists: {outfile.resolve()}."
+                " Will not overwrite it. Delete the file or choose a different path. Aborting.",
+                param_hint="outfile",
+            )
+
+        feed = {str(outfile): {"format": format.to_scrapy()}}
 
     with Progress(
         SpinnerColumn(),
@@ -93,28 +100,17 @@ def fetch(
         transient=True,
         console=Console(stderr=True),
     ) as progress:
-        item_task = progress.add_task(
+        progress.add_task(
             "Scraping...",
             total=limit,  # use limit as a rough estimate
         )
 
         try:
-            runner = CrawlerRunner(
-                settings={"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
-            )
-
+            runner = CrawlerRunner(settings={"FEEDS": feed})
             crawler = runner.create_crawler(NewsfeedSpider)
-            # crawler.signals.connect(
-            #     lambda: progress.update(item_task, completed=True),
-            #     signal=scrapy.signals.item_scraped,
-            # )
-
             deferred = runner.crawl(crawler, limit=limit, last_n_days=last_n_days)
             deferred.addBoth(lambda _: reactor.stop())  # type: ignore
             reactor.run()  # type: ignore  # blocks until the crawling is finished
-
-            # if crawler.stats:
-            #     typer.echo(crawler.stats.get_stats(NewsfeedSpider()))
 
         except Exception as exception:
             cmd_logger.exception(
@@ -123,5 +119,6 @@ def fetch(
             raise typer.Exit(code=1) from exception
 
     cmd_logger.info(
-        f"Done! Successfully scraped the newsfeed. The output was saved to: {outfile.resolve()}"
+        f"Done! Successfully scraped the newsfeed."
+        + (f" The output was saved to: {outfile.resolve()}" if not use_stdout else "")
     )
