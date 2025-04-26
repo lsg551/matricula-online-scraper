@@ -138,6 +138,17 @@ A sample from the output (here _JSON Lines_) looks like this:
 
 Run `matricula-online-scraper parish show --help` to see all available options.
 
+### Example: Combine with other commands and 3rd party tools to download all registers within a certain region.
+
+The following command will download the cached list with all parishes, filter all parishes within the region "Paderborn", and pipe the parish URLs to `matricula-online-scraper parish show` to get the metadata about the registers for each parish. Then, `matricula-online-scraper parish fetch` will be called for all registers of each parish and proceeds to download the images of the registers.
+
+```console
+curl -sL https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz | gunzip | csvgrep -c region -m "Paderborn" | csvcut -c url | csvformat --skip-header | xargs -n 1 -P 4 matricula-online-scraper parish show -o - | jq -r ".url // empty" | matricula-online-scraper parish fetch
+```
+
+It uses [`csvkit`](https://csvkit.readthedocs.io/en/latest/index.html) for processing the CSV data. Make sure to install it via `pip install csvkit` or your package manager if you want to replicate this example. Also make sure to have [`jq`](https://stedolan.github.io/jq/) installed, as it is used to parse and manipulate the JSON output of some commands.
+
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
