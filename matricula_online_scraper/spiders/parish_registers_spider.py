@@ -1,6 +1,6 @@
 """Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
-from typing import Dict, List
+from dataclasses import dataclass
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 import scrapy  # pylint: disable=import-error # type: ignore
@@ -11,6 +11,22 @@ from matricula_online_scraper.utils.matricula_pagination import create_next_url
 HOST = "https://data.matricula-online.eu"
 
 
+@dataclass
+class ParishRegisterMetadata:
+    """Metadata for a parish register scraped from the parish page."""
+
+    name: str
+    """Name of the parish register."""
+    url: str
+    """Points to the first page of the parish register."""
+    accession_number: str
+    """Accession number of the parish register (not guaranteed to be unique)."""
+    date: str
+    """Date range of the parish register."""
+    details: dict[str, str]
+    """Additional key-value pairs with metadata."""
+
+
 class ParishRegistersSpider(scrapy.Spider):
     """Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
@@ -19,7 +35,7 @@ class ParishRegistersSpider(scrapy.Spider):
         "https://data.matricula-online.eu/en/deutschland/muenster/0-status-animarum/",
     ]
 
-    def __init__(self, start_urls: List[str], **kwargs):
+    def __init__(self, start_urls: list[str], **kwargs):
         super().__init__(**kwargs)
         self.start_urls = start_urls
 
@@ -66,7 +82,7 @@ class ParishRegistersSpider(scrapy.Spider):
 
                 # from inconsistent expandable details row
                 # a <dl> with <dt>s as keys and <dd>s as values
-                details: Dict[str, str] = {
+                details: dict[str, str] = {
                     dt.strip().lower().replace(" ", "_"): dd.strip()
                     for dt, dd in zip(
                         details_row.css("tr td dl dt ::text").getall(),
@@ -74,13 +90,30 @@ class ParishRegistersSpider(scrapy.Spider):
                     )
                 }
 
-                yield {
-                    "name": name,
-                    "url": url,
-                    "accession_number": accession_number,
-                    "date": date_range_str,
-                    **details,
-                }
+                if not name:
+                    self.logger.warning(f"No name found for {response.url}. Skipping")
+                    continue
+                if not url:
+                    self.logger.error(f"No URL found for {response.url}. Skipping.")
+                    continue
+                if not accession_number:
+                    self.logger.error(
+                        f"No accession number found for {response.url}. Skipping"
+                    )
+                    continue
+                if not date_range_str:
+                    self.logger.error(
+                        f"No date range found for {response.url}. Skipping"
+                    )
+                    continue
+
+                yield ParishRegisterMetadata(
+                    name=name,
+                    url=url,
+                    accession_number=accession_number,
+                    date=date_range_str,
+                    details=details,
+                )
 
         next_page = response.css(
             "ul.pagination li.page-item.active + li.page-item a.page-link::attr('href')"
