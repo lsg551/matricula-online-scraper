@@ -11,6 +11,7 @@ from matricula_online_scraper.utils.matricula_pagination import create_next_url
 HOST = "https://data.matricula-online.eu"
 
 
+# TODO: rename to `Parish` once #83 is implemented
 @dataclass
 class ParishRegisterMetadata:
     """Metadata for a parish register scraped from the parish page."""
@@ -27,6 +28,7 @@ class ParishRegisterMetadata:
     """Additional key-value pairs with metadata."""
 
 
+# TODO: rename to `ParishSpider` once #83 is implemented
 class ParishRegistersSpider(scrapy.Spider):
     """Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
