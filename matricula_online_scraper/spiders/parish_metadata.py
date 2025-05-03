@@ -1,5 +1,6 @@
-"""Scrapy spider to scrape locations from Matricula Online."""
+"""Scrapy spider to scrape available parishes from Matricula Online."""
 
+from dataclasses import dataclass
 from typing import Tuple, TypedDict
 from urllib.parse import urljoin
 
@@ -11,32 +12,31 @@ HOST = "https://data.matricula-online.eu"
 SCRAPE_ROUTE = "https://data.matricula-online.eu/en/suchen/"
 
 
-class Location(TypedDict):
-    """A location of data in question with its country, region, parish name and URL.
+@dataclass
+class ParishMetadata:
+    """Metadata for a parish scraped from the locations page.
 
     Note that the data is inconsistent (except 'url' and 'country').
     Single fields may contain multiple values, such as annotations or alternative names.
     """
 
     country: str
-
+    """Country the parish is located in."""
     region: str
     """
     Broader state, province or region, sometimes a religious/historical one.
     In some cases virtual locations are used, such as institutions like digital archives.
     """
-
     name: str
     """Name of the parish or city. Larger cities may have multiple parishes."""
-
     url: str
-    """URL to the location's dedicated Matricula page."""
+    """URL to the parish's dedicated Matricula page."""
 
 
-class LocationsSpider(scrapy.Spider):
-    """Scrapy spider to scrape locations from Matricula Online."""
+class ParishMetadataSpider(scrapy.Spider):
+    """Scrapy spider to scrape available parishes from Matricula Online."""
 
-    name = "locations"
+    name = "parishes"
 
     def __init__(
         self,
@@ -71,18 +71,18 @@ class LocationsSpider(scrapy.Spider):
         self.logger.debug(f"Start urls: {self.start_urls}")
 
     def parse(self, response):
-        # iterate over each location in the result table
-        for location in response.css("div.results a.list-group-item"):
-            # extract the location information
-            country_region_str = location.css(
+        # iterate over each parish in the result table
+        for parish in response.css("div.results a.list-group-item"):
+            # extract the parish information
+            country_region_str = parish.css(
                 "a.list-group-item span.text-muted::text"
             ).get()
             # and split into country and region
             country, region = [item.strip() for item in country_region_str.split("•")]
-            url = urljoin(HOST, location.css("a.list-group-item::attr('href')").get())
+            url = urljoin(HOST, parish.css("a.list-group-item::attr('href')").get())
             # If search parameters like 'place' are used, the DOM is changed and a <mark>
             # is inserted to highlight text. This gets all text from childnodes and joins them.
-            name_parts = location.css(
+            name_parts = parish.css(
                 "a.list-group-item span.text-primary ::text"
             ).getall()
             name = "".join(name_parts).strip()
