@@ -1,4 +1,7 @@
-"""Scrapy spider to scrape available parishes from Matricula Online."""
+"""Scrapy spider to scrape available parishes from Matricula Online.
+
+This allows to obtain a complete or partial list of all parishes available on Matricula Online.
+"""
 
 from dataclasses import dataclass
 from typing import Tuple, TypedDict
