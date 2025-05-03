@@ -6,10 +6,10 @@ Various subcommands allow to:
 3. `show` the available registers in a parish and their metadata
 """
 
-import select
+import cmd
 import sys
 from pathlib import Path
-from typing import Annotated, Optional, Tuple
+from typing import Annotated, Any, Optional, Tuple
 
 import typer
 from rich.console import Console
@@ -19,12 +19,18 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.table import Table
+from scrapy import signals
 from scrapy.crawler import CrawlerRunner
 from twisted.internet import reactor
 
-from matricula_online_scraper.spiders.locations_spider import LocationsSpider
-from matricula_online_scraper.spiders.parish_registers_spider import (
+from matricula_online_scraper.spiders.parish import (
+    ParishRegisterMetadata,
     ParishRegistersSpider,
+)
+from matricula_online_scraper.spiders.parish_list import (
+    ParishMetadata,
+    ParishMetadataSpider,
 )
 from matricula_online_scraper.utils.matricula_url import get_parish_name
 
@@ -123,8 +129,8 @@ def fetch(
     )
 
 
-@app.command()
-def list(
+@app.command("list")
+def list_parishes(
     outfile: Annotated[
         Path,
         typer.Option(
@@ -144,6 +150,10 @@ def list(
     place: Annotated[
         Optional[str], typer.Option(help="Full text search for a location.")
     ] = None,
+    # NOTE: https://data.matricula-online.eu/en/suchen/ has a dropdown with diocese names
+    # that can be used for filtering. The HTML components uses integers to represent such options.
+    # Unfortunately, that value is just passed around in Matricula and even used in the URL.
+    # So one would have to scrape that dump dropdown to get the integer values.
     diocese: Annotated[
         Optional[int],
         typer.Option(
@@ -151,6 +161,7 @@ def list(
             min=0,
         ),
     ] = None,
+    # TODO: refactor this awful design, just make it a single option
     date_filter: Annotated[
         bool, typer.Option(help="Enable/disable date filter.")
     ] = False,
@@ -176,6 +187,17 @@ def list(
             help="Skip any prompt with YES.",
         ),
     ] = False,
+    human_readable: Annotated[
+        bool,
+        typer.Option(
+            "--human-readable",
+            "-h",
+            help=(
+                "Print the ouput in a human readable format. Ignores the outfile option"
+                " and writes to STDOUT instead."
+            ),
+        ),
+    ] = False,
 ):
     """(2) List available parishes.
 
@@ -197,10 +219,13 @@ def list(
     cmd_logger.debug("Start fetching Matricula Online parishes.")
 
     use_stdout = outfile == Path("-")
-    feed: dict[str, dict[str, str]]
+    collected_items: list[ParishMetadata] = []
+    settings: dict[str, Any]
 
-    if use_stdout:
-        feed = {"stdout:": {"format": "jsonlines"}}
+    if human_readable:
+        settings = {}
+    elif use_stdout:
+        settings = {"FEEDS": {"stdout:": {"format": "jsonlines"}}}
     else:
         try:
             format = FileFormat(outfile.suffix[1:])
@@ -219,7 +244,7 @@ def list(
                 param_hint="outfile",
             )
 
-        feed = {str(outfile): {"format": format.to_scrapy()}}
+        settings = {"FEED": {str(outfile): {"format": format.to_scrapy()}}}
 
     # all search parameters are unused => fetching everything takes some time
     if (
@@ -236,6 +261,11 @@ def list(
             " or download the cached CSV file from the repository:"
             " https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz"
         )
+        if human_readable:
+            cmd_logger.warning(
+                "The --human-readable option should only be used if filters are applied to shrink potentially large output."
+                " This might cause unexpected behavior in your terminal."
+            )
         if not skip_prompt:
             typer.confirm(
                 "Are you sure you want to proceed scraping without any filters?",
@@ -254,8 +284,16 @@ def list(
         progress.add_task("Scraping...", total=None)
 
         try:
-            runner = CrawlerRunner(settings={"FEEDS": feed})
-            crawler = runner.create_crawler(LocationsSpider)
+            runner = CrawlerRunner(settings=settings)
+            crawler = runner.create_crawler(ParishMetadataSpider)
+
+            if human_readable:
+
+                def collect(item, response, spider):
+                    collected_items.append(item)
+
+                crawler.signals.connect(collect, signal=signals.item_scraped)
+
             deferred = runner.crawl(
                 crawler,
                 place=place or "",
@@ -275,8 +313,44 @@ def list(
 
     cmd_logger.info(
         f"Done! Successfully scraped the parish list."
-        + (f" The output was saved to: {outfile.resolve()}" if not use_stdout else "")
+        + (
+            f" The output was saved to: {outfile.resolve()}"
+            if outfile and not use_stdout and not human_readable
+            else ""
+        )  # type: ignore
     )
+
+    if human_readable:
+        collected_items.sort(key=lambda item: item["region"])
+
+        table = Table(
+            title="Parishes in Matricula Online.",
+            caption=f"{len(collected_items)} parishes found.",
+        )
+        table.add_column("Name", justify="left")
+        table.add_column("Region", justify="left")
+        table.add_column("Country", justify="left")
+        table.add_column("URL", justify="left")
+        if not exclude_coordinates:
+            table.add_column("Coordinates", justify="left")
+
+        for item in collected_items:
+            table.add_row(
+                item["name"],
+                item["region"],
+                item["country"],
+                f"[link={item['url']}]URL[/link]",
+                (
+                    f"{item['latitude']}, {item['longitude']}"
+                    if not exclude_coordinates
+                    and "latitude" in item
+                    and "longitude" in item
+                    else None
+                ),
+            )
+
+        console = Console()
+        console.print(table)
 
 
 @app.command()
@@ -307,6 +381,17 @@ def show(
             allow_dash=True,  # use '-' to write to stdout
         ),
     ] = None,
+    human_readable: Annotated[
+        bool,
+        typer.Option(
+            "--human-readable",
+            "-h",
+            help=(
+                "Print the ouput in a human readable format. Ignores the outfile option"
+                " and writes to STDOUT instead."
+            ),
+        ),
+    ] = False,
 ):
     """(3) Show available registers in a parish and their metadata.
 
@@ -334,10 +419,13 @@ def show(
         )
 
     use_stdout = outfile == Path("-")
-    feed: dict[str, dict[str, str]]
+    settings: dict[str, Any]
+    collected_items: list[ParishRegisterMetadata] = []
 
-    if use_stdout:
-        feed = {"stdout:": {"format": "jsonlines"}}
+    if human_readable:
+        settings = {}
+    elif use_stdout:
+        settings = {"FEEDS": {"stdout:": {"format": "jsonlines"}}}
     else:
         if not outfile or outfile == "":
             outfile = Path(f"matricula_parish_{get_parish_name(parish)}.jsonl")
@@ -362,7 +450,7 @@ def show(
                 param_hint="outfile",
             )
 
-        feed = {str(outfile): {"format": format.to_scrapy()}}
+        settings = {"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
 
     with Progress(
         SpinnerColumn(),
@@ -374,9 +462,15 @@ def show(
         progress.add_task("Scraping...", total=None)
 
         try:
-            runner = CrawlerRunner(settings={"FEEDS": feed})
-
+            runner = CrawlerRunner(settings=settings)
             crawler = runner.create_crawler(ParishRegistersSpider)
+
+            if human_readable:
+
+                def collect(item, response, spider):
+                    collected_items.append(item)
+
+                crawler.signals.connect(collect, signal=signals.item_scraped)
 
             deferred = runner.crawl(crawler, start_urls=[parish])
             deferred.addBoth(lambda _: reactor.stop())  # type: ignore
@@ -390,5 +484,32 @@ def show(
 
     cmd_logger.info(
         f"Done! Successfully scraped the parish."
-        + (f" The output was saved to: {outfile.resolve()}" if not use_stdout else "")  # type: ignore
+        + (
+            f" The output was saved to: {outfile.resolve()}"
+            if outfile and not use_stdout and not human_readable
+            else ""
+        )  # type: ignore
     )
+
+    if human_readable:
+        table = Table(
+            # title="" # TODO: get name of parish
+            caption=f"{len(collected_items)} parish registers found for {parish}",
+        )
+        table.add_column("Name", justify="left")
+        table.add_column("Accession Num.", justify="left")
+        table.add_column("Date", justify="left")
+        table.add_column("URL", justify="left")
+        table.add_column("Details", justify="left")
+
+        for item in collected_items:
+            table.add_row(
+                item.name,
+                item.accession_number,
+                item.date,
+                f"[link={item.url}]URL[/link]",
+                ", ".join(f'{key}="{value}"' for key, value in item.details.items()),
+            )
+
+        console = Console()
+        console.print(table)
