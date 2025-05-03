@@ -4,7 +4,7 @@ This allows to obtain a complete or partial list of all parishes available on Ma
 """
 
 from dataclasses import dataclass
-from typing import Tuple, TypedDict
+from typing import NotRequired, Tuple, TypedDict
 from urllib.parse import urljoin
 
 import scrapy  # pylint: disable=import-error # type: ignore
@@ -15,8 +15,7 @@ HOST = "https://data.matricula-online.eu"
 SCRAPE_ROUTE = "https://data.matricula-online.eu/en/suchen/"
 
 
-@dataclass
-class ParishMetadata:
+class ParishMetadata(TypedDict):
     """Metadata for a parish scraped from the locations page.
 
     Note that the data is inconsistent (except 'url' and 'country').
@@ -34,6 +33,11 @@ class ParishMetadata:
     """Name of the parish or city. Larger cities may have multiple parishes."""
     url: str
     """URL to the parish's dedicated Matricula page."""
+
+    latitude: NotRequired[float]
+    """Latitude of the parish."""
+    longitude: NotRequired[float]
+    """Longitude of the parish."""
 
 
 class ParishMetadataSpider(scrapy.Spider):
