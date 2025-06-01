@@ -250,9 +250,9 @@ pydispatcher==2.0.7 ; platform_python_implementation == 'CPython' \
 pygments==2.19.1 \
     --hash=sha256:61c16d2a8576dc0649d9f39e089b5f02bcd27fba10d8fb4dcc28173f7a45151f \
     --hash=sha256:9ea1544ad55cecf4b8242fab6dd35a93bbce657034b0611ee383099054ab6d8c
-pyopenssl==25.0.0 \
-    --hash=sha256:424c247065e46e76a37411b9ab1782541c23bb658bf003772c3405fbaa128e90 \
-    --hash=sha256:cd2cef799efa3936bb08e8ccb9433a575722b9dd986023f1cabc4ae64e9dac16
+pyopenssl==25.1.0 \
+    --hash=sha256:2b11f239acc47ac2e5aca04fd7fa829800aeee22a2eb30d744572a157bd8a1ab \
+    --hash=sha256:8d031884482e0c67ee92bf9a4d8cceb08d92aba7136432ffb0703c5280fc205b
 pypydispatcher==2.1.2 ; platform_python_implementation == 'PyPy' \
     --hash=sha256:b6bec5dfcff9d2535bca2b23c80eae367b1ac250a645106948d315fcfa9130f2
 pytest==8.3.5 \
