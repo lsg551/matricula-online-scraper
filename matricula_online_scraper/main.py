@@ -53,6 +53,7 @@ def main(  # noqa: D103
         Optional[bool],
         typer.Option(
             "--verbose",
+            "--debug",
             "-v",
             # is_eager=True,
             # callback=set_verbose_logging,
