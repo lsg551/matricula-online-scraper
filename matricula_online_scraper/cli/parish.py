@@ -6,7 +6,6 @@ Various subcommands allow to:
 3. `show` the available registers in a parish and their metadata
 """
 
-import cmd
 import sys
 from pathlib import Path
 from typing import Annotated, Any, Optional, Tuple
@@ -110,6 +109,12 @@ def fetch(
                 settings={
                     "ITEM_PIPELINES": {"scrapy.pipelines.images.ImagesPipeline": 1},
                     "IMAGES_STORE": directory.resolve(),
+                    # NOTE: Force a non-asyncio reactor (https://docs.scrapy.org/en/2.13/topics/asyncio.html#switching-to-a-non-asyncio-reactor).
+                    # Scrapy 3.12.0 made the asyncio reactor the default one (https://docs.scrapy.org/en/2.13/news.html#scrapy-2-13-0-2025-05-08).
+                    # which causes the process to run indefinitely and never finish,
+                    # see https://github.com/lsg551/matricula-online-scraper/issues/100
+                    # For now, use a sync reactor to avoid this issue.
+                    "TWISTED_REACTOR": None,
                 }
             )
             crawler = runner.create_crawler(ChurchRegisterSpider)
@@ -245,6 +250,13 @@ def list_parishes(
             )
 
         settings = {"FEED": {str(outfile): {"format": format.to_scrapy()}}}
+
+    # NOTE: Force a non-asyncio reactor (https://docs.scrapy.org/en/2.13/topics/asyncio.html#switching-to-a-non-asyncio-reactor).
+    # Scrapy 3.12.0 made the asyncio reactor the default one (https://docs.scrapy.org/en/2.13/news.html#scrapy-2-13-0-2025-05-08).
+    # which causes the process to run indefinitely and never finish,
+    # see https://github.com/lsg551/matricula-online-scraper/issues/100
+    # For now, use a sync reactor to avoid this issue.
+    settings["TWISTED_REACTOR"] = None
 
     # all search parameters are unused => fetching everything takes some time
     if (
@@ -451,6 +463,13 @@ def show(
             )
 
         settings = {"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
+
+    # NOTE: Force a non-asyncio reactor (https://docs.scrapy.org/en/2.13/topics/asyncio.html#switching-to-a-non-asyncio-reactor).
+    # Scrapy 3.12.0 made the asyncio reactor the default one (https://docs.scrapy.org/en/2.13/news.html#scrapy-2-13-0-2025-05-08).
+    # which causes the process to run indefinitely and never finish,
+    # see https://github.com/lsg551/matricula-online-scraper/issues/100
+    # For now, use a sync reactor to avoid this issue.
+    settings["TWISTED_REACTOR"] = None
 
     with Progress(
         SpinnerColumn(),
