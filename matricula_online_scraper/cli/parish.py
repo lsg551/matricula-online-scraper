@@ -249,7 +249,7 @@ def list_parishes(
                 param_hint="outfile",
             )
 
-        settings = {"FEED": {str(outfile): {"format": format.to_scrapy()}}}
+        settings = {"FEEDS": {str(outfile): {"format": format.to_scrapy()}}}
 
     # NOTE: Force a non-asyncio reactor (https://docs.scrapy.org/en/2.13/topics/asyncio.html#switching-to-a-non-asyncio-reactor).
     # Scrapy 3.12.0 made the asyncio reactor the default one (https://docs.scrapy.org/en/2.13/news.html#scrapy-2-13-0-2025-05-08).
