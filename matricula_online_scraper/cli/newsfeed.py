@@ -106,7 +106,17 @@ def fetch(
         )
 
         try:
-            runner = CrawlerRunner(settings={"FEEDS": feed})
+            runner = CrawlerRunner(
+                settings={
+                    "FEEDS": feed,
+                    # NOTE: Force a non-asyncio reactor (https://docs.scrapy.org/en/2.13/topics/asyncio.html#switching-to-a-non-asyncio-reactor).
+                    # Scrapy 3.12.0 made the asyncio reactor the default one (https://docs.scrapy.org/en/2.13/news.html#scrapy-2-13-0-2025-05-08).
+                    # which causes the process to run indefinitely and never finish,
+                    # see https://github.com/lsg551/matricula-online-scraper/issues/100
+                    # For now, use a sync reactor to avoid this issue.
+                    "TWISTED_REACTOR": None,
+                }
+            )
             crawler = runner.create_crawler(NewsfeedSpider)
             deferred = runner.crawl(crawler, limit=limit, last_n_days=last_n_days)
             deferred.addBoth(lambda _: reactor.stop())  # type: ignore
