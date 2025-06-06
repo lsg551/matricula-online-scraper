@@ -10,6 +10,7 @@ import typer
 from matricula_online_scraper.cli.newsfeed import app as newsfeed_app
 from matricula_online_scraper.cli.parish import app as parish_app
 from matricula_online_scraper.logging_config import Logging, LogLevel, get_logger
+from matricula_online_scraper.utils.user_console import UserConsole
 
 app = typer.Typer(
     help="""Command Line Interface (CLI) for scraping Matricula Online https://data.matricula-online.eu.
@@ -81,11 +82,15 @@ def main(  # noqa: D103
     package_logging: Annotated[
         Optional[LogLevel],
         typer.Option(
-            "--package-logging",
+            "--package-logging",  # TODO: change to --package-loglevel
             help="Set the logging level for 3rd-party packags.",
             hidden=True,
         ),
     ] = None,
+    # TODO: add `--logfile` option to set an additional destination for logs
+    # `--loglevel` is then used to set the log level for this stream handler
+    # However, a second stream handler is kept for the console output, which is then ERROR or CRITICAL
+    # Or even now that user-facing messages are separated from the logging, only use a single root logger
     version: Annotated[
         Optional[bool],
         typer.Option(
@@ -117,6 +122,7 @@ def main(  # noqa: D103
     if quiet:
         logconf.log_level = LogLevel.CRITICAL
         logconf.package_log_level = LogLevel.CRITICAL
+        UserConsole().quiet = True  # uses singleton, propagates to all instances
     if log_level:
         logconf.log_level = log_level
     if package_logging:
