@@ -18,6 +18,7 @@ def shorten_path(path: Path) -> str:
     """
     home = Path.home()
     cwd = Path.cwd()
+    path = path.resolve()
 
     if path == cwd:
         short = "."
