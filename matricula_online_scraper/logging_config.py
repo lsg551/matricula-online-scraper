@@ -42,7 +42,7 @@ class LogLevel(str, Enum):
         return self.value
 
 
-DEFAULT_LOG_LEVEL = LogLevel.INFO
+DEFAULT_LOG_LEVEL = LogLevel.WARNING
 DEFAULT_PACKAGE_LOG_LEVEL = LogLevel.CRITICAL
 
 
