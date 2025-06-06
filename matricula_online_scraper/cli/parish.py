@@ -31,13 +31,17 @@ from matricula_online_scraper.spiders.parish_list import (
     ParishMetadata,
     ParishMetadataSpider,
 )
+from matricula_online_scraper.utils.common_error import UNKNOWN_ERROR_MSG
 from matricula_online_scraper.utils.matricula_url import get_parish_name
+from matricula_online_scraper.utils.shorten_path import shorten_path
+from matricula_online_scraper.utils.user_console import UserConsole
 
 from ..logging_config import get_logger
 from ..spiders.church_register import ChurchRegisterSpider
 from ..utils.file_format import FileFormat
 
 logger = get_logger(__name__)
+usrcon = UserConsole()
 
 app = typer.Typer()
 
@@ -97,7 +101,7 @@ def fetch(
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
         transient=True,
-        console=Console(stderr=True),
+        console=usrcon.console,
     ) as progress:
         progress.add_task(
             "Scraping...",
@@ -125,13 +129,18 @@ def fetch(
 
         except Exception as exception:
             cmd_logger.exception(
-                "An error occurred while scraping Matricula Online parish registers."
+                "'parish fetch' command failed with an unknown exception."
             )
+            usrcon.error(UNKNOWN_ERROR_MSG)
             raise typer.Exit(1) from exception
 
-    cmd_logger.info(
-        f"Done! Successfully scraped the parish registers. The output was saved to: {directory.resolve()}"
-    )
+        else:
+            cmd_logger.info("'parish fetch' command terminated successfully.")
+            cmd_logger.debug(
+                f"Output has been written to the specified directory: {directory.resolve()}"
+            )
+            usrcon.success("Successfully scraped the parish images.")
+            usrcon.success(f"Exported images to {shorten_path(directory)}")
 
 
 @app.command("list")
@@ -177,7 +186,7 @@ def list_parishes(
     exclude_coordinates: Annotated[
         bool,
         typer.Option(
-            "--exclude-coordinates",
+            "--exclude-coordinates/--include-coordinates",
             help=(
                 "Exclude coordinates from the output to speed up the scraping process."
                 " Coordinates will be scraped by default."
@@ -221,11 +230,12 @@ def list_parishes(
  Preferably, you should download that file instead: https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz
     """
     cmd_logger = logger.getChild(fetch.__name__)
-    cmd_logger.debug("Start fetching Matricula Online parishes.")
 
     use_stdout = outfile == Path("-")
-    collected_items: list[ParishMetadata] = []
     settings: dict[str, Any]
+
+    collected_items: list[ParishMetadata] = []
+    """Cache for collected items when human_readable is True."""
 
     if human_readable:
         settings = {}
@@ -260,21 +270,22 @@ def list_parishes(
 
     # all search parameters are unused => fetching everything takes some time
     if (
-        place is None
-        or place == ""
+        (place is None or place == "")
         and diocese is None
         and date_filter is False
         and date_range is None
     ):
-        cmd_logger.warning(
+        usrcon.warning(
             "No search parameters were provided to restrict the search."
             " This will create a list with all available parishes."
-            " To avoid lengthy scraping times, use --exclude-coordinates to speed up the process"
-            " or download the cached CSV file from the repository:"
+            " It is recommended to download the cached CSV file from the repository instead:"
             " https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz"
         )
+        usrcon.info(
+            "Use --exclude-coordinates to speed up the scraping process by not fetching coordinates."
+        )
         if human_readable:
-            cmd_logger.warning(
+            usrcon.warning(
                 "The --human-readable option should only be used if filters are applied to shrink potentially large output."
                 " This might cause unexpected behavior in your terminal."
             )
@@ -291,7 +302,7 @@ def list_parishes(
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
         transient=True,
-        console=Console(stderr=True),
+        console=usrcon.console,
     ) as progress:
         progress.add_task("Scraping...", total=None)
 
@@ -319,18 +330,19 @@ def list_parishes(
 
         except Exception as exception:
             cmd_logger.exception(
-                "An error occurred while scraping Matricula Online parishes."
+                "'parish list' command failed with an unknown exception."
             )
+            usrcon.error(UNKNOWN_ERROR_MSG)
             raise typer.Exit(code=1) from exception
 
-    cmd_logger.info(
-        f"Done! Successfully scraped the parish list."
-        + (
-            f" The output was saved to: {outfile.resolve()}"
-            if outfile and not use_stdout and not human_readable
-            else ""
-        )  # type: ignore
-    )
+        else:
+            cmd_logger.info("'parish list' command terminated successfully.")
+            usrcon.success("Successfully scraped the parish list.")
+
+            if outfile and not use_stdout and not human_readable:
+                usrcon.success(
+                    f"The parish list was written to {shorten_path(outfile)}."
+                )
 
     if human_readable:
         collected_items.sort(key=lambda item: item["region"])
@@ -361,8 +373,7 @@ def list_parishes(
                 ),
             )
 
-        console = Console()
-        console.print(table)
+        usrcon.print(table)
 
 
 @app.command()
@@ -414,7 +425,6 @@ def show(
     $ matricula-online-scraper parish show https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/
     """
     cmd_logger = logger.getChild(fetch.__name__)
-    cmd_logger.debug("Start fetching Matricula Online parish.")
 
     # read from stdin if no parish is provided
     if not parish:
@@ -432,7 +442,9 @@ def show(
 
     use_stdout = outfile == Path("-")
     settings: dict[str, Any]
+
     collected_items: list[ParishRegisterMetadata] = []
+    """Cache for collected items when human_readable is True."""
 
     if human_readable:
         settings = {}
@@ -476,7 +488,7 @@ def show(
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
         transient=True,
-        console=Console(stderr=True),
+        console=usrcon.console,
     ) as progress:
         progress.add_task("Scraping...", total=None)
 
@@ -497,18 +509,19 @@ def show(
 
         except Exception as exception:
             cmd_logger.exception(
-                "An error occurred while scraping Matricula Online's newsfeed."
+                "'parish show' command failed with an unknown exception."
             )
+            usrcon.error(UNKNOWN_ERROR_MSG)
             raise typer.Exit(code=1) from exception
 
-    cmd_logger.info(
-        f"Done! Successfully scraped the parish."
-        + (
-            f" The output was saved to: {outfile.resolve()}"
-            if outfile and not use_stdout and not human_readable
-            else ""
-        )  # type: ignore
-    )
+        else:
+            cmd_logger.info("'parish show' command terminated successfully.")
+            usrcon.success("Successfully scraped the parish registers metadata.")
+
+            if outfile and not use_stdout and not human_readable:
+                usrcon.success(
+                    f"The parish registers metadata was written to {shorten_path(outfile)}."
+                )
 
     if human_readable:
         table = Table(
@@ -530,5 +543,4 @@ def show(
                 ", ".join(f'{key}="{value}"' for key, value in item.details.items()),
             )
 
-        console = Console()
-        console.print(table)
+        usrcon.print(table)

@@ -16,10 +16,14 @@ from twisted.internet import reactor
 
 from matricula_online_scraper.logging_config import get_logger
 from matricula_online_scraper.spiders.newsfeed_spider import NewsfeedSpider
+from matricula_online_scraper.utils.common_error import UNKNOWN_ERROR_MSG
+from matricula_online_scraper.utils.shorten_path import shorten_path
+from matricula_online_scraper.utils.user_console import Level, UserConsole
 
 from ..utils.file_format import FileFormat
 
 logger = get_logger(__name__)
+usrcon = UserConsole()
 
 app = typer.Typer()
 
@@ -98,7 +102,7 @@ def fetch(
         TextColumn("[progress.description]{task.description}"),
         TimeElapsedColumn(),
         transient=True,
-        console=Console(stderr=True),
+        console=usrcon.console,
     ) as progress:
         progress.add_task(
             "Scraping...",
@@ -124,11 +128,17 @@ def fetch(
 
         except Exception as exception:
             cmd_logger.exception(
-                "An error occurred while scraping Matricula Online's newsfeed."
+                "'newsfeed fetch' command failed with an unknown exception."
             )
+            usrcon.error(UNKNOWN_ERROR_MSG)
             raise typer.Exit(code=1) from exception
 
-    cmd_logger.info(
-        f"Done! Successfully scraped the newsfeed."
-        + (f" The output was saved to: {outfile.resolve()}" if not use_stdout else "")
-    )
+        else:
+            cmd_logger.info("'newsfeed fetch' command terminated successfully.")
+            usrcon.success("Successfully scraped the newsfeed.")
+
+            if not use_stdout:
+                cmd_logger.debug(
+                    f"The scraped newsfeed data was written to {outfile.resolve() if not use_stdout else 'STDOUT'}."
+                )
+                usrcon.success(f"Exported the newsfeed data to {shorten_path(outfile)}")
