@@ -189,10 +189,9 @@ def list_parishes(
             "--exclude-coordinates/--include-coordinates",
             help=(
                 "Exclude coordinates from the output to speed up the scraping process."
-                " Coordinates will be scraped by default."
             ),
         ),
-    ] = False,
+    ] = True,
     skip_prompt: Annotated[
         bool,
         typer.Option(
