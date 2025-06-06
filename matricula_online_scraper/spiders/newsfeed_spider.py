@@ -40,7 +40,7 @@ class NewsfeedSpider(scrapy.Spider):
 
         for news_article in items:
             if self.limit is not None and self.counter >= self.limit:
-                self.close(self, reason="Limit reached")
+                self.close(self, reason=f"User set limit ({self.limit=}) reached")
                 break
             self.counter += 1
 
@@ -64,7 +64,10 @@ class NewsfeedSpider(scrapy.Spider):
                     and (delta := date.today() - article_date)
                     and delta.days > self.last_n_days
                 ):
-                    reason = f"Article is older than {self.last_n_days} days: {article_date_str}. Breaking scrape loop."
+                    reason = (
+                        "Recently scraped article is older than the maximum"
+                        f" specified days (max={self.last_n_days}): {article_date_str}. Stopping."
+                    )
                     logger.debug(reason)
                     break
 
