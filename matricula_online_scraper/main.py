@@ -1,5 +1,5 @@
-"""CLI entry point for matricula-online-scraper."""
 #!/usr/bin/env python3
+"""CLI entry point for matricula-online-scraper."""
 
 import logging
 from importlib.metadata import version as get_version
@@ -70,7 +70,7 @@ def main(  # noqa: D103
             help="Suppress all output (CRITICAL).",
         ),
     ] = None,
-    log_level: Annotated[
+    loglevel: Annotated[
         Optional[LogLevel],
         typer.Option(
             "--loglevel",
@@ -79,10 +79,10 @@ def main(  # noqa: D103
             hidden=True,
         ),
     ] = None,
-    package_logging: Annotated[
+    package_loglevel: Annotated[
         Optional[LogLevel],
         typer.Option(
-            "--package-logging",  # TODO: change to --package-loglevel
+            "--package-loglevel",
             help="Set the logging level for 3rd-party packags.",
             hidden=True,
         ),
@@ -107,13 +107,13 @@ def main(  # noqa: D103
         raise typer.BadParameter(
             "The --quiet and --verbose options are mutually exclusive."
         )
-    if (verbose or quiet) and log_level:
+    if (verbose or quiet) and loglevel:
         raise typer.BadParameter(
             "The --verbose or --quiet options are mutually exclusive with --loglevel."
         )
-    if (verbose or quiet) and package_logging:
+    if (verbose or quiet) and package_loglevel:
         raise typer.BadParameter(
-            "The --verbose or --quiet options are mutually exclusive with --package-logging."
+            "The --verbose or --quiet options are mutually exclusive with --package-loglevel."
         )
 
     if verbose:
@@ -123,10 +123,10 @@ def main(  # noqa: D103
         logconf.log_level = LogLevel.CRITICAL
         logconf.package_log_level = LogLevel.CRITICAL
         UserConsole().quiet = True  # uses singleton, propagates to all instances
-    if log_level:
-        logconf.log_level = log_level
-    if package_logging:
-        logconf.package_log_level = package_logging
+    if loglevel:
+        logconf.log_level = loglevel
+    if package_loglevel:
+        logconf.package_log_level = package_loglevel
 
     # NOTE: The loggers are using handlers. These are acting as additional filters.
     # They would need to be updated too. In this case, it is easier to parse all logging
