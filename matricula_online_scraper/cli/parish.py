@@ -228,7 +228,7 @@ def list_parishes(
  A GitHub workflow does this once a week and caches the CSV file in the repository.\
  Preferably, you should download that file instead: https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz
     """
-    cmd_logger = logger.getChild(fetch.__name__)
+    cmd_logger = logger.getChild(list_parishes.__name__)
 
     use_stdout = outfile == Path("-")
     settings: dict[str, Any]
@@ -423,7 +423,7 @@ def show(
     \n\nExample:\n\n
     $ matricula-online-scraper parish show https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/
     """
-    cmd_logger = logger.getChild(fetch.__name__)
+    cmd_logger = logger.getChild(show.__name__)
 
     # read from stdin if no parish is provided
     if not parish:
