@@ -71,10 +71,10 @@ def fetch(
             )
         ),
     ] = None,
-    directory: Annotated[
+    outdir: Annotated[
         Path,
         typer.Option(
-            "--outdirectory",
+            "--outdir",
             "-o",
             help="Directory to save the image files in.",
             file_okay=False,
@@ -130,13 +130,7 @@ def fetch(
             runner = CrawlerRunner(
                 settings={
                     "ITEM_PIPELINES": {"scrapy.pipelines.images.ImagesPipeline": 1},
-                    "IMAGES_STORE": directory.resolve(),
-                    # NOTE: Force a non-asyncio reactor (https://docs.scrapy.org/en/2.13/topics/asyncio.html#switching-to-a-non-asyncio-reactor).
-                    # Scrapy 3.12.0 made the asyncio reactor the default one (https://docs.scrapy.org/en/2.13/news.html#scrapy-2-13-0-2025-05-08).
-                    # which causes the process to run indefinitely and never finish,
-                    # see https://github.com/lsg551/matricula-online-scraper/issues/100
-                    # For now, use a sync reactor to avoid this issue.
-                    "TWISTED_REACTOR": None,
+                    "IMAGES_STORE": outdir.resolve(),
                 }
             )
             crawler = runner.create_crawler(ChurchRegisterSpider)
@@ -155,12 +149,12 @@ def fetch(
         else:
             cmd_logger.info("'parish fetch' command terminated successfully.")
             # NOTE: this won't catch all exceptions, as it only checks if the root dir exists
-            if directory.exists():
+            if outdir.exists():
                 cmd_logger.debug(
-                    f"Output has been written to the specified directory: {directory.resolve()}"
+                    f"Output has been written to the specified directory: {outdir.resolve()}"
                 )
             usrcon.success("Successfully scraped the parish images.")
-            usrcon.success(f"Exported images to {shorten_path(directory)}")
+            usrcon.success(f"Exported images to {shorten_path(outdir)}")
 
 
     if show_stats:
