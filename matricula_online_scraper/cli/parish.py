@@ -154,9 +154,11 @@ def fetch(
 
         else:
             cmd_logger.info("'parish fetch' command terminated successfully.")
-            cmd_logger.debug(
-                f"Output has been written to the specified directory: {directory.resolve()}"
-            )
+            # NOTE: this won't catch all exceptions, as it only checks if the root dir exists
+            if directory.exists():
+                cmd_logger.debug(
+                    f"Output has been written to the specified directory: {directory.resolve()}"
+                )
             usrcon.success("Successfully scraped the parish images.")
             usrcon.success(f"Exported images to {shorten_path(directory)}")
 
@@ -367,7 +369,7 @@ def list_parishes(
             cmd_logger.info("'parish list' command terminated successfully.")
             usrcon.success("Successfully scraped the parish list.")
 
-            if outfile and not use_stdout and not human_readable:
+            if outfile and not use_stdout and not human_readable and outfile.exists():
                 usrcon.success(
                     f"The parish list was written to {shorten_path(outfile)}."
                 )
@@ -555,8 +557,7 @@ def show(
         else:
             cmd_logger.info("'parish show' command terminated successfully.")
             usrcon.success("Successfully scraped the parish registers metadata.")
-
-            if outfile and not use_stdout and not human_readable:
+            if outfile and not use_stdout and not human_readable and outfile.exists():
                 usrcon.success(
                     f"The parish registers metadata was written to {shorten_path(outfile)}."
                 )
