@@ -20,7 +20,7 @@ from rich.progress import (
 )
 from rich.table import Table
 from scrapy import signals
-from scrapy.crawler import CrawlerRunner
+from scrapy.crawler import Crawler, CrawlerRunner
 from twisted.internet import reactor
 
 from matricula_online_scraper.spiders.parish import (
@@ -44,6 +44,17 @@ logger = get_logger(__name__)
 usrcon = UserConsole()
 
 app = typer.Typer()
+
+
+def print_stats(crawler: Crawler):
+    """Print the stats of the crawler if available."""
+    if crawler.stats:
+        usrcon.print(crawler.stats.get_stats())
+    else:
+        logger.warning(
+            "No stats collector was found in the crawler. Cannot print stats."
+        )
+        usrcon.warning("No stats were collected during the scraping process.")
 
 
 @app.command()
@@ -71,6 +82,13 @@ def fetch(
             resolve_path=True,
         ),
     ] = Path.cwd() / "parish_register_images",
+    show_stats: Annotated[
+        bool,
+        typer.Option(
+            "--stats",
+            help="Print the stats of the scraping process after it terminated.",
+        ),
+    ] = False,
 ):
     """(1) Download a church register.https://docs.astral.sh/ruff/rules/escape-sequence-in-docstring.
 
@@ -143,6 +161,10 @@ def fetch(
             usrcon.success(f"Exported images to {shorten_path(directory)}")
 
 
+    if show_stats:
+        print_stats(crawler)
+
+
 @app.command("list")
 def list_parishes(
     outfile: Annotated[
@@ -209,6 +231,13 @@ def list_parishes(
                 "Print the ouput in a human readable format. Ignores the outfile option"
                 " and writes to STDOUT instead."
             ),
+        ),
+    ] = False,
+    show_stats: Annotated[
+        bool,
+        typer.Option(
+            "--stats",
+            help="Print the stats of the scraping process after it terminated.",
         ),
     ] = False,
 ):
@@ -374,6 +403,9 @@ def list_parishes(
 
         usrcon.print(table)
 
+    if show_stats:
+        print_stats(crawler)
+
 
 @app.command()
 def show(
@@ -412,6 +444,13 @@ def show(
                 "Print the ouput in a human readable format. Ignores the outfile option"
                 " and writes to STDOUT instead."
             ),
+        ),
+    ] = False,
+    show_stats: Annotated[
+        bool,
+        typer.Option(
+            "--stats",
+            help="Print the stats of the scraping process after it terminated.",
         ),
     ] = False,
 ):
@@ -542,4 +581,5 @@ def show(
                 ", ".join(f'{key}="{value}"' for key, value in item.details.items()),
             )
 
-        usrcon.print(table)
+        if show_stats:
+            print_stats(crawler)
