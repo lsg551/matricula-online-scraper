@@ -25,7 +25,7 @@ from twisted.internet import reactor
 
 from matricula_online_scraper.spiders.parish import (
     ParishRegisterMetadata,
-    ParishRegistersSpider,
+    ParishSpider,
 )
 from matricula_online_scraper.spiders.parish_list import (
     ParishMetadata,
@@ -493,7 +493,7 @@ def show(
 
         try:
             runner = CrawlerRunner(settings=settings)
-            crawler = runner.create_crawler(ParishRegistersSpider)
+            crawler = runner.create_crawler(ParishSpider)
 
             if human_readable:
 
