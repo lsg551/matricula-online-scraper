@@ -44,8 +44,8 @@ _colorMap: dict[Level, str] = {
 class UserConsole(metaclass=Singleton):
     """A user console for printing user-facing messages."""
 
-    def __init__(self):  # noqa: D107
-        self.console = Console(stderr=True)
+    def __init__(self, *, stderr: bool = True):  # noqa: D107
+        self.console = Console(stderr=stderr)
         self._quiet = False
 
     @property
