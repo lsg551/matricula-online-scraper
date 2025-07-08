@@ -8,7 +8,7 @@
 
 [Matricula Online](https://data.matricula-online.eu/) is a non-profit initiative that digitizes parish records in Central Europe and hosts them for free on their website. `matricula-online-scraper` is a command-line interface (CLI) tool that enables you to download data directly from it.
 
-This includes the scanned parish registers (scanned books about baptism, marriage, death records etc.) as well as metadata about the parishes and their registers. Data can be downloaded in CSV or JSON, images are generally provided as PNG files.
+This includes the scanned parish registers (scanned books about baptism, marriage, death records etc.) as well as metadata about the parishes and their registers. Data can be downloaded in CSV or JSON, images are generally provided as JPEG files.
 
 ## Installation
 
