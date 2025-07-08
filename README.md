@@ -117,25 +117,24 @@ Polen      , "Breslau/Wroclaw, Staatsarchiv" , Hermsdorf            , https://da
 It may take a few minutes to complete and will yield a few thousand rows. Each `url` value leads to the main page of the parish
 and can bepiped into the next command (3) to fetch metadata about the parish's registers.
 
-
-> [!TIP]
-> The data only changes rarely. A GitHub workflow automatically executes this command once a week
-> and pushes to [`cache/parishes`](https://github.com/lsg551/matricula-online-scraper/tree/cache/parishes).
-> This has the advantage that you can download the data without having to run and waiting for the command yourself
-> as well as taking some load off the Matricula servers.
->
-> Click here to download the entire CSV: 👉 [`parishes.csv`](https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz) 👈
->
-> Or with cURL:
-> ```console
-> curl -L https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz | gunzip > parishes.csv
-> ```
->
-> [![Cache Parishes](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml/badge.svg)](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml)
-> ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/lsg551/matricula-online-scraper/cache%2Fparishes?path=parishes.csv.gz&label=last%20caching&cacheSeconds=43200)
-
-
 Run `matricula-online-scraper parish list --help` to see all available options.
+
+---
+
+[![Cache Parishes](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml/badge.svg)](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml)
+![GitHub last commit (branch)](https://img.shields.io/github/last-commit/lsg551/matricula-online-scraper/cache%2Fparishes?path=parishes.csv.gz&label=last%20caching&cacheSeconds=43200)
+
+<b>NOTE</b>: The data only changes rarely. A GitHub workflow automatically executes this command once a week
+and pushes to [`cache/parishes`](https://github.com/lsg551/matricula-online-scraper/tree/cache/parishes).
+This has the advantage that you can download the data without having to run and waiting for the command yourself
+as well as taking some load off the Matricula servers.
+
+Click here to download the entire CSV: 👉 [`parishes.csv`](https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz) 👈
+
+Or with cURL:
+```console
+curl -L https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz | gunzip > parishes.csv
+```
 
 </p>
 </details>
