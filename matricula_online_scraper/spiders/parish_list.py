@@ -44,6 +44,12 @@ class ParishMetadataSpider(scrapy.Spider):
     """Scrapy spider to scrape available parishes from Matricula Online."""
 
     name = "parishes"
+    custom_settings = {
+        # TODO: inject through settings object
+        "SPIDER_MIDDLEWARES": {
+            "matricula_online_scraper.middlewares.custom_http_error.HTTPErrorLoggingMiddleware": 49
+        },
+    }
 
     def __init__(
         self,

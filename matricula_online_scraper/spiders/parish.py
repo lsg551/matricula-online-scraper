@@ -57,10 +57,13 @@ class ParishSpider(scrapy.Spider):
     """Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
     name = "parish_registers"
-    allowed_domains = ["data.matricula-online.eu"]
     custom_settings = {
         "ITEM_PIPELINES": {
             "matricula_online_scraper.pipelines.parish_pipeline.CustomParishPipeline": 1
+        },
+        # TODO: inject through settings object
+        "SPIDER_MIDDLEWARES": {
+            "matricula_online_scraper.middlewares.custom_http_error.HTTPErrorLoggingMiddleware": 49
         },
     }
 

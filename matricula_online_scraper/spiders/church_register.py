@@ -33,9 +33,10 @@ class ChurchRegisterSpider(scrapy.Spider):
         "ITEM_PIPELINES": {
             "matricula_online_scraper.pipelines.images_pipeline.CustomImagesPipeline": 1
         },
-        # "EXTENSIONS": {
-        #     "matricula_online_scraper.extensions.church_register.StatusTrackerExtension": 123
-        # },
+        # TODO: inject through settings object
+        "SPIDER_MIDDLEWARES": {
+            "matricula_online_scraper.middlewares.custom_http_error.HTTPErrorLoggingMiddleware": 49
+        },
     }
 
     def parse(self, response):
