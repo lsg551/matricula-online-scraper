@@ -23,6 +23,12 @@ class NewsfeedSpider(scrapy.Spider):
     """Scrapy spider to scrape Matricula Online's newsfeed."""
 
     name = "newsfeed"
+    custom_settings = {
+        # TODO: inject through settings object
+        "SPIDER_MIDDLEWARES": {
+            "matricula_online_scraper.middlewares.custom_http_error.HTTPErrorLoggingMiddleware": 49
+        },
+    }
 
     def __init__(
         self, limit: Optional[int] = None, last_n_days: Optional[int] = None, **kwargs

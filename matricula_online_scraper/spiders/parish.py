@@ -1,17 +1,24 @@
-"""Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
+"""Scrapy spider to scrape a parish's homepage and metadata about its registers.
+
+Example:
+Scraping https://data.matricula-online.eu/de/deutschland/aachen/aachen-st-adalbert/
+will yield all the metadata in the table on that page.
+"""
 
 from dataclasses import dataclass
 from urllib.parse import parse_qs, urlencode, urljoin, urlparse, urlunparse
 
 import scrapy  # pylint: disable=import-error # type: ignore
+import scrapy.exceptions
+from scrapy.exceptions import CloseSpider
 from scrapy.http.response import Response
 
 from matricula_online_scraper.utils.matricula_pagination import create_next_url
+from matricula_online_scraper.utils.user_console import UserConsole
 
 HOST = "https://data.matricula-online.eu"
 
 
-# TODO: rename to `Parish` once #83 is implemented
 @dataclass
 class ParishRegisterMetadata:
     """Metadata for a parish register scraped from the parish page."""
@@ -28,41 +35,55 @@ class ParishRegisterMetadata:
     """Additional key-value pairs with metadata."""
 
 
-# TODO: rename to `ParishSpider` once #83 is implemented
-class ParishRegistersSpider(scrapy.Spider):
+@dataclass
+class EmptyParish:
+    """Yielded when a parish page is empty and does NOT provide an external link."""
+
+    parish: str
+    """URL of the parish missing its registers."""
+
+
+@dataclass
+class PlaceholderParish:
+    """Yielded when a parish page is empty but provides an external link."""
+
+    parish: str
+    """URL of the parish missing its registers."""
+    reference: list[str]
+    """One or more URLs to some external resource."""
+
+
+class ParishSpider(scrapy.Spider):
     """Scrapy spider to scrape parish registers from a specific location from Matricula Online."""
 
     name = "parish_registers"
-    start_urls = [
-        "https://data.matricula-online.eu/en/deutschland/muenster/0-status-animarum/",
-    ]
-
-    def __init__(self, start_urls: list[str], **kwargs):
-        super().__init__(**kwargs)
-        self.start_urls = start_urls
+    custom_settings = {
+        "ITEM_PIPELINES": {
+            "matricula_online_scraper.pipelines.parish_pipeline.CustomParishPipeline": 1
+        },
+        # TODO: inject through settings object
+        "SPIDER_MIDDLEWARES": {
+            "matricula_online_scraper.middlewares.custom_http_error.HTTPErrorLoggingMiddleware": 49
+        },
+    }
 
     def parse(self, response: Response):
         items = response.css("div.table-responsive tr")
 
-        # in some cases a parish's page is left blank intentionally
+        # in some cases, a parish's page is left blank intentionally
         # sometimes an external link is provided instead ... check if the page has a table
         if items is None or len(items) == 0:
             # this element usually contains another element with a link to an external website
             description_container = response.css("div.description")
             urls = description_container.css("a::attr('href')").getall()
-            urls = list(set(urls))  # remove duplicates
+            urls = list(set(urls))
 
-            # completly blank page
             if urls is None or len(urls) <= 0:
                 self.logger.debug(f"No data found for {response.url}")
-                yield
-
-            # one or many links found
-            if len(urls) >= 1:
-                for url in urls:
-                    yield {
-                        "external_url": url,
-                    }
+                yield EmptyParish(response.url)
+            else:
+                self.logger.debug(f"External URLs found for {response.url}: {urls}")
+                yield PlaceholderParish(response.url, urls)
 
         # page has a table with parish registers
         else:
