@@ -32,7 +32,10 @@ from matricula_online_scraper.spiders.parish_list import (
     ParishMetadataSpider,
 )
 from matricula_online_scraper.utils.common_error import UNKNOWN_ERROR_MSG
-from matricula_online_scraper.utils.matricula_url import get_parish_name
+from matricula_online_scraper.utils.matricula_url import (
+    ParishPageURL,
+    ParishRegisterURL,
+)
 from matricula_online_scraper.utils.shorten_path import shorten_path
 from matricula_online_scraper.utils.user_console import UserConsole
 
@@ -49,7 +52,7 @@ app = typer.Typer()
 @app.command()
 def fetch(
     urls: Annotated[
-        Optional[list[str]],
+        Optional[list[ParishRegisterURL]],
         typer.Argument(
             help=(
                 "One or more URLs to church register pages."
@@ -57,7 +60,8 @@ def fetch(
                 " If no URL is provided, read from STDIN."
                 # NOTE: It will block until EOF is reached or the pipeline is closed
                 # because all data must be gathered from STDIN before proceeding
-            )
+            ),
+            parser=ParishRegisterURL._from_arg,
         ),
     ] = None,
     directory: Annotated[
@@ -87,7 +91,13 @@ def fetch(
 
     # read from stdin if no urls are provided
     if not urls:
-        urls = sys.stdin.read().splitlines()
+        urls = [ParishRegisterURL(url.strip()) for url in sys.stdin.read().splitlines()]
+        for url in urls:
+            if not url.is_valid:
+                raise typer.BadParameter(
+                    f"Invalid parish register URL provided via STDIN: {url.url}",
+                    param_hint="urls",
+                )
 
     if not urls:
         raise typer.BadParameter(
@@ -123,7 +133,7 @@ def fetch(
             )
             crawler = runner.create_crawler(ChurchRegisterSpider)
 
-            deferred = runner.crawl(crawler, start_urls=urls)
+            deferred = runner.crawl(crawler, start_urls=[urls.url for urls in urls])
             deferred.addBoth(lambda _: reactor.stop())  # type: ignore
             reactor.run()  # type: ignore  # blocks until the crawling is finished
 
@@ -378,11 +388,12 @@ def list_parishes(
 @app.command()
 def show(
     parish: Annotated[
-        Optional[str],
+        Optional[ParishPageURL],
         typer.Argument(
             help=(
                 "Parish URL to scrape available registers and metadata for. Reads from STDIN if not provided."
-            )
+            ),
+            parser=ParishPageURL._from_arg,
         ),
     ] = None,
     outfile: Annotated[
@@ -430,7 +441,12 @@ def show(
         cmd_logger.debug(
             f"Reading from STDIN as no argument for 'parish' was provided."
         )
-        parish = sys.stdin.read().strip()
+        parish = ParishPageURL(sys.stdin.read().strip())
+        if not parish.is_valid:
+            raise typer.BadParameter(
+                f"Invalid parish URL provided via STDIN: {parish.url}",
+                param_hint="parish",
+            )
 
     if not parish:
         raise typer.BadParameter(
@@ -451,7 +467,7 @@ def show(
         settings = {"FEEDS": {"stdout:": {"format": "jsonlines"}}}
     else:
         if not outfile or outfile == "":
-            outfile = Path(f"matricula_parish_{get_parish_name(parish)}.jsonl")
+            outfile = Path(f"matricula_parish_{parish.name}.jsonl")
             cmd_logger.debug(
                 f"No outfile provided. Using constructed default name: {outfile.resolve()}"
             )
@@ -502,7 +518,7 @@ def show(
 
                 crawler.signals.connect(collect, signal=signals.item_scraped)
 
-            deferred = runner.crawl(crawler, start_urls=[parish])
+            deferred = runner.crawl(crawler, start_urls=[parish.url])
             deferred.addBoth(lambda _: reactor.stop())  # type: ignore
             reactor.run()  # type: ignore  # blocks until the crawling is finished
 
