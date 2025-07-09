@@ -43,7 +43,7 @@ class LogLevel(str, Enum):
 
 
 DEFAULT_LOG_LEVEL = LogLevel.WARNING
-DEFAULT_PACKAGE_LOG_LEVEL = LogLevel.CRITICAL
+DEFAULT_PACKAGE_LOG_LEVEL = LogLevel.ERROR
 
 
 LOGGING_THEME = Theme({"logging.level.debug": "blue", "logging.level.info": "green"})
