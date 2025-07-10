@@ -47,33 +47,35 @@ Once installed, you can can append the `--help` flag to any command to see its u
 ```
 $ matricula-online-scraper --help
 
- Usage: matricula-online-scraper [OPTIONS] COMMAND [ARGS]...                         
-                                                                                                    
- Command Line Interface (CLI) for scraping Matricula Online https://data.matricula-online.eu.       
-                                                                                                    
- You can use this tool to scrape the three primary entities from Matricula:                         
- 1. Scanned parish registers (→ images of baptism, marriage, and death records)                     
- 2. A list of all available parishes (→ location metadata)                                          
- 3. A list for each parish with metadata about its registers, including dates ranges, type etc.     
-                                                                                                    
-╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --verbose,--debug     -v        Enable verbose logging (DEBUG).                                  │
-│ --quiet               -q        Suppress all output (CRITICAL).                                  │
-│ --version                       Show the CLI's version.                                          │
-│ --install-completion            Install completion for the current shell.                        │
-│ --show-completion               Show completion for the current shell, to copy it or customize   │
-│                                 the installation.                                                │
-│ --help                          Show this message and exit.                                      │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────╮
-│ parish     Scrape parish registers (1), a list with all available parishes (2) or a list of the  │
-│            available registers in a parish (3).                                                  │
-│ newsfeed   Scrape Matricula Online's Newsfeed.                                                   │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                                                                                    
- Attach the --help flag to any subcommand for further help and to see its options. Press CTRL+C to  
- exit at any time.
- See https://github.com/lsg551/matricula-online-scraper for more information.
+ Usage: matricula-online-scraper [OPTIONS] COMMAND [ARGS]...                              
+                                                                                          
+ Command Line Interface (CLI) for scraping Matricula Online                               
+ https://data.matricula-online.eu.                                                        
+                                                                                          
+ You can use this tool to scrape the three primary entities from Matricula:               
+ 1. Scanned parish registers (→ images of baptism, marriage, and death records)           
+ 2. A list of all available parishes (→ location metadata)                                
+ 3. A list for each parish with metadata about its registers, including dates ranges,     
+ type etc.                                                                                
+                                                                                          
+╭─ Options ──────────────────────────────────────────────────────────────────────────────╮
+│ --verbose,--debug     -v        Enable verbose logging (DEBUG).                        │
+│ --quiet               -q        Suppress all output (CRITICAL).                        │
+│ --version                       Show the CLI's version.                                │
+│ --install-completion            Install completion for the current shell.              │
+│ --show-completion               Show completion for the current shell, to copy it or   │
+│                                 customize the installation.                            │
+│ --help                          Show this message and exit.                            │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ─────────────────────────────────────────────────────────────────────────────╮
+│ parish     Scrape parish registers (1), a list with all available parishes (2) or a    │
+│            list of the available registers in a parish (3).                            │
+│ newsfeed   Scrape Matricula Online's Newsfeed.                                         │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+                                                                                          
+ Attach the --help flag to any subcommand for further help and to see its options. Press  
+ CTRL+C to exit at any time.                                                              
+ See https://github.com/lsg551/matricula-online-scraper for more information.    
 ```
 
 
