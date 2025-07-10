@@ -1,5 +1,7 @@
-name: Lint and format code with Ruff
+name: lint & format
+
 on: [push]
+
 jobs:
   ruff:
     runs-on: ubuntu-latest
@@ -9,6 +11,5 @@ jobs:
         uses: astral-sh/ruff-action@v3
         with:
           version-file: "./pyproject.toml"
-      - run: ruff check --fix
-      - run: ruff check --fix --diff
-        
+      - run: ruff check
+      - run: ruff format --check
