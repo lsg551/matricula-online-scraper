@@ -39,7 +39,7 @@ You can append any command of `matricula-online-scraper` to the end to run it di
 
 ```bash
 # docker run --rm -it <IMAGE> <SUBCOMMAND>
-$ docker run --rm -it ghcr.io/lsg551/matricula-online-scraper:latest parish list
+$ docker run --rm -it ghcr.io/lsg551/matricula-online-scraper:latest parish list --place Paderborn -h
 ```
 
 If you want to scrape data and save it to your local filesystem, you will have to create a [bind mount](https://docs.docker.com/engine/storage/bind-mounts/) via the `-v` flag though.
