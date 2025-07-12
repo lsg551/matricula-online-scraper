@@ -58,7 +58,7 @@ It will write directly from the container to a subfolder in your current working
 Lastly, you can also get an interactive shell in the container
 
 ```bash
-$ docker run --rm -it --entrypoint /bin/bash ghcr.io/lsg551/matricula-online-scraper
+$ docker run --rm -it --entrypoint /bin/ash ghcr.io/lsg551/matricula-online-scraper:latest
 root@abc123:/app# matricula-online-scraper --version
 0.8.0
 ```
