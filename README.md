@@ -19,7 +19,58 @@ this tool via `pip`:
 $ pip install -u matricula-online-scraper
 ```
 
-<details><summary>Or build from source</summary>
+<details><summary><b>Or use a container 🐳</b></summary>
+<p>
+
+For every version, an OCI container image is built and published to GHCR.io (GitHub's own container registry).
+This is especially useful if you do not want to deal with Python environments, multiple Python versions and package managers.
+Or you could use `matricula-online-scraper` in an automated environment this way.
+The image can also be used as a disposable container, leaving no dependencies or build artifacts on your system.
+
+Simply copy and paste the following command into your terminal, it will automatically pull the latest image and run it:
+
+```bash
+$ docker run --rm -it ghcr.io/lsg551/matricula-online-scraper:latest
+```
+
+This will print the default help message and exit – but from the container and the output will be visible in your terminal.
+
+You can append any command of `matricula-online-scraper` to the end to run it directly, e.g. to list all parishes:
+
+```bash
+# docker run --rm -it <IMAGE> <SUBCOMMAND>
+$ docker run --rm -it ghcr.io/lsg551/matricula-online-scraper:latest parish list --place Paderborn -h
+```
+
+If you want to scrape data and save it to your local filesystem, you will have to create a [bind mount](https://docs.docker.com/engine/storage/bind-mounts/) via the `-v` flag though.
+Otherwise, the data would be saved inside the container, but not on your own machine.
+
+Let's say you want to scrape [this parish register](https://data.matricula-online.eu/de/deutschland/muenster/anholt-st-pankratius/KB001_1/?pg=1) and save it to your current working directory.
+
+```bash
+$ docker run -v "$(pwd):/data" --rm -it ghcr.io/lsg551/matricula-online-scraper:latest \
+    parish fetch https://data.matricula-online.eu/de/deutschland/muenster/anholt-st-pankratius/KB001_1/?pg=1 \
+    -o /data/matricula
+```
+
+It will write directly from the container to a subfolder in your current working directory (`pwd`) called `matricula`, which is mounted to `/data/` inside the container.
+
+Lastly, you can also get an interactive shell in the container
+
+```bash
+$ docker run --rm -it --entrypoint /bin/bash ghcr.io/lsg551/matricula-online-scraper
+root@abc123:/app# matricula-online-scraper --version
+0.8.0
+```
+
+This will keep the container running until you exit it with `exit`, so you can run any command inside as you like.
+
+
+**NOTE**: You could also use [`podman`](https://podman.io), a drop-in replacement for `docker`, if you like. The commands are the same.
+
+</p>
+</details>
+<details><summary><b>Or build from source</b></summary>
 <p>
 
 If you want to get the latest version or just build from source, you can clone the repository and install it manually,
@@ -47,32 +98,34 @@ Once installed, you can can append the `--help` flag to any command to see its u
 ```
 $ matricula-online-scraper --help
 
- Usage: matricula-online-scraper [OPTIONS] COMMAND [ARGS]...                         
-                                                                                                    
- Command Line Interface (CLI) for scraping Matricula Online https://data.matricula-online.eu.       
-                                                                                                    
- You can use this tool to scrape the three primary entities from Matricula:                         
- 1. Scanned parish registers (→ images of baptism, marriage, and death records)                     
- 2. A list of all available parishes (→ location metadata)                                          
- 3. A list for each parish with metadata about its registers, including dates ranges, type etc.     
-                                                                                                    
-╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --verbose,--debug     -v        Enable verbose logging (DEBUG).                                  │
-│ --quiet               -q        Suppress all output (CRITICAL).                                  │
-│ --version                       Show the CLI's version.                                          │
-│ --install-completion            Install completion for the current shell.                        │
-│ --show-completion               Show completion for the current shell, to copy it or customize   │
-│                                 the installation.                                                │
-│ --help                          Show this message and exit.                                      │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────╮
-│ parish     Scrape parish registers (1), a list with all available parishes (2) or a list of the  │
-│            available registers in a parish (3).                                                  │
-│ newsfeed   Scrape Matricula Online's Newsfeed.                                                   │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                                                                                    
- Attach the --help flag to any subcommand for further help and to see its options. Press CTRL+C to  
- exit at any time.
+ Usage: matricula-online-scraper [OPTIONS] COMMAND [ARGS]...
+
+ Command Line Interface (CLI) for scraping Matricula Online
+ https://data.matricula-online.eu.
+
+ You can use this tool to scrape the three primary entities from Matricula:
+ 1. Scanned parish registers (→ images of baptism, marriage, and death records)
+ 2. A list of all available parishes (→ location metadata)
+ 3. A list for each parish with metadata about its registers, including dates ranges,
+ type etc.
+
+╭─ Options ──────────────────────────────────────────────────────────────────────────────╮
+│ --verbose,--debug     -v        Enable verbose logging (DEBUG).                        │
+│ --quiet               -q        Suppress all output (CRITICAL).                        │
+│ --version                       Show the CLI's version.                                │
+│ --install-completion            Install completion for the current shell.              │
+│ --show-completion               Show completion for the current shell, to copy it or   │
+│                                 customize the installation.                            │
+│ --help                          Show this message and exit.                            │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ─────────────────────────────────────────────────────────────────────────────╮
+│ parish     Scrape parish registers (1), a list with all available parishes (2) or a    │
+│            list of the available registers in a parish (3).                            │
+│ newsfeed   Scrape Matricula Online's Newsfeed.                                         │
+╰────────────────────────────────────────────────────────────────────────────────────────╯
+
+ Attach the --help flag to any subcommand for further help and to see its options. Press
+ CTRL+C to exit at any time.
  See https://github.com/lsg551/matricula-online-scraper for more information.
 ```
 
