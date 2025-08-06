@@ -75,6 +75,13 @@ def fetch(
             resolve_path=True,
         ),
     ] = Path.cwd() / "parish_register_images",
+    use_flat_outdir: Annotated[
+        bool,
+        typer.Option(
+            "--flat/--nested",
+            help="Use a flat or nested directory structure for storing the images in --outdirectory.",
+        ),
+    ] = False,
 ):
     """(1) Download a church register.https://docs.astral.sh/ruff/rules/escape-sequence-in-docstring.
 
@@ -133,7 +140,11 @@ def fetch(
             )
             crawler = runner.create_crawler(ChurchRegisterSpider)
 
-            deferred = runner.crawl(crawler, start_urls=[urls.url for urls in urls])
+            deferred = runner.crawl(
+                crawler,
+                start_urls=[urls.url for urls in urls],
+                image_dir_structure="flat" if use_flat_outdir else "nested",
+            )
             deferred.addBoth(lambda _: reactor.stop())  # type: ignore
             reactor.run()  # type: ignore  # blocks until the crawling is finished
 

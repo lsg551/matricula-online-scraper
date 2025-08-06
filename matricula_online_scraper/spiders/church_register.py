@@ -4,6 +4,7 @@ import base64
 import json
 import logging
 import re
+from typing import Literal, cast
 
 import scrapy
 from rich import console
@@ -11,15 +12,25 @@ from rich import console
 stderr = console.Console(stderr=True)
 logger = logging.getLogger(__name__)
 
+type ImageDirStructure = Literal["flat", "nested"]
+
 
 # overrides the default so we can pass custom metadata to the pipeline
 class ChurchRegisterDownloadItem(scrapy.Item):
     """Item to store the URLs of the images to be downloaded."""
 
     image_urls = scrapy.Field()
+    """List of URLs of the images to be downloaded from Matricula Online."""
     images = scrapy.Field()
+    """The scraped images."""
+
     # --- custom fields ---
     original_url = scrapy.Field()
+    """The user requested URL of the parish register."""
+    image_dir_structure = scrapy.Field()
+    """Indicating whether the images should be stored in a 'flat' or 'nested' directory structure.
+    It's type is `type ImageDirStructure = Literal["flat", "nested"]`.
+    """
 
 
 class ChurchRegisterSpider(scrapy.Spider):
@@ -37,10 +48,15 @@ class ChurchRegisterSpider(scrapy.Spider):
         "SPIDER_MIDDLEWARES": {
             "matricula_online_scraper.middlewares.custom_http_error.HTTPErrorLoggingMiddleware": 49
         },
+        "TWISTED_REACTOR": None,
     }
 
+    def __init__(self, *args, image_dir_structure: ImageDirStructure, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.image_dir_structure = image_dir_structure
+
     def parse(self, response):
-        # Note: a "church register url" like https://data.matricula-online.eu/de/deutschland/aachen/aachen-hl-kreuz/KB+001/?pg=1
+        # NOTE: a "church register url" like https://data.matricula-online.eu/de/deutschland/aachen/aachen-hl-kreuz/KB+001/?pg=1
         # leads to a page where the image with some page number is embedded in a canvas. The user can navigate to the next page,
         # manipulate the image etc.
         # Unfortunatly, there are no direct URLs pointing to a PNG file (see https://github.com/lsg551/matricula-online-scraper/issues/3)
@@ -48,8 +64,6 @@ class ChurchRegisterSpider(scrapy.Spider):
         # Instead, Matricula encodes those paths in base64 and loads them via JavaScript. Each page's (whether `?pg=2` or `?pg=3`) HTML
         # has a variable `dv1` in a script tag. This variable contains the base64-encoded image paths to all scanned images of
         # the church register in question. This needs to be extracted and decoded to obtain a list of URLs to the images.
-
-        # self.pipeline_observer.mark_as_started(response.url)
 
         # found in the last script tag in the body of the HTML
         dv1_var = response.xpath("//body/script[last()]/text()").get()
@@ -98,4 +112,8 @@ class ChurchRegisterSpider(scrapy.Spider):
         #         self.pipeline_observer.observe(file, label, initiator=response.url)
         #     self.pipeline_observer.mark_as_in_process(response.url)
 
-        yield ChurchRegisterDownloadItem(image_urls=files, original_url=response.url)
+        yield ChurchRegisterDownloadItem(
+            image_urls=files,
+            original_url=response.url,
+            image_dir_structure=self.image_dir_structure,
+        )

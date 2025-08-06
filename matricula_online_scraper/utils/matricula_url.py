@@ -147,6 +147,11 @@ class ParishPageURL(MatriculaURL):
         """
         return self.parsed.path.split("/")[4]
 
+    @property
+    def parish(self) -> str:
+        """Alias for `name`."""
+        return self.name
+
 
 class ParishRegisterURL(ParishPageURL):
     """Class representing a Matricula URL for a specific parish register.
