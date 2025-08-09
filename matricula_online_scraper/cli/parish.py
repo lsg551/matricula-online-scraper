@@ -6,6 +6,7 @@ Various subcommands allow to:
 3. `show` the available registers in a parish and their metadata
 """
 
+import select
 import sys
 from pathlib import Path
 from typing import Annotated, Any, Optional, Tuple
@@ -98,13 +99,15 @@ def fetch(
 
     # read from stdin if no urls are provided
     if not urls:
-        urls = [ParishRegisterURL(url.strip()) for url in sys.stdin.read().splitlines()]
-        for url in urls:
-            if not url.is_valid:
-                raise typer.BadParameter(
-                    f"Invalid parish register URL provided via STDIN: {url.url}",
-                    param_hint="urls",
-                )
+        if select.select([sys.stdin], [], [], 0.0)[0]:
+            stdin = sys.stdin.read()
+            urls = [ParishRegisterURL(url.strip()) for url in stdin.splitlines()]
+            for url in urls:
+                if not url.is_valid:
+                    raise typer.BadParameter(
+                        f"Invalid parish register URL provided via STDIN: {url.url}",
+                        param_hint="urls",
+                    )
 
     if not urls:
         raise typer.BadParameter(
