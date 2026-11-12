@@ -5,17 +5,21 @@ request. For breaking or other major changes, please open an issue first to
 discuss what you would like to change. Despite this, please make sure to follow
 the few guidelines below.
 
-### Git pre-commit hooks
+### Development setup
 
-Note that some git hooks are required to pass before committing. This is
-enforced by [pre-commit](https://pre-commit.com). Have a look at the
-[`.pre-commit-config.yaml`](.pre-commit-config.yaml) file to see which hooks are
-run. You can also run them manually with `uvx pre-commit run --all-files`.
-
-To install the git hooks in your local development environment, run:
+Set up the environment and install the development dependencies with
+[`uv`](https://docs.astral.sh/uv/):
 
 ```bash
-$ uvx pre-commit install
+$ uv sync
+```
+
+After changing dependencies in `pyproject.toml`, refresh the lockfile and the
+exported `requirements.txt`:
+
+```bash
+$ uv lock
+$ uv export --frozen --output-file=requirements.txt
 ```
 
 ### Conventional Commits
@@ -28,8 +32,12 @@ or other major changes, please add a detailed description of the changes.
 ### Code Style (Linting and Formatting)
 
 [Ruff](https://docs.astral.sh/ruff/) is used as a code linter and formatter.
-This is enforced by a pre-commit hook and a github action. You can also run it
-manually with `ruff`.
+This is enforced by a GitHub action. Run it locally with:
+
+```bash
+$ uv run ruff check
+$ uv run ruff format
+```
 
 ### Static Type Checking
 

@@ -10,9 +10,10 @@ runner = CliRunner()
 def test_app():
     """Check that the app is callable."""
     # test `$ matricula-online-scraper`
-    # this should call without arguments or options should default into the help message
+    # without arguments or options it defaults into the help message;
+    # typer/click exit with code 2 when no command is given
     result = runner.invoke(app)
 
-    assert result.exit_code == 0
+    assert result.exit_code == 2
     assert "Usage:" in result.stdout
     assert "--help" in result.stdout

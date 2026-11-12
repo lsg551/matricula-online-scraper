@@ -1,10 +1,8 @@
 """Custom pipeline to handle parish items from the `ParishSpider`."""
 
-from typing import Any, override
+from typing import Any
 
-import scrapy
 from scrapy.exceptions import DropItem
-from twisted.internet.defer import Deferred
 
 from matricula_online_scraper.spiders.parish import EmptyParish, PlaceholderParish
 from matricula_online_scraper.utils.user_console import UserConsole
@@ -16,8 +14,8 @@ class CustomParishPipeline:
     """Custom pipeline to handle parish items from the `ParishSpider`."""
 
     def process_item(  # pyright: ignore[reportIncompatibleMethodOverride]
-        self, item: Any, spider: scrapy.Spider
-    ) -> scrapy.Item | Deferred:
+        self, item: Any
+    ) -> Any:
         """Custom process_item method to handle different item types."""
         match item:
             case PlaceholderParish():

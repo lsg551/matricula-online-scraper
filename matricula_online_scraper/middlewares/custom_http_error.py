@@ -2,7 +2,6 @@
 
 from typing import override
 
-import scrapy
 from scrapy.http.response import Response
 from scrapy.spidermiddlewares.httperror import HttpErrorMiddleware
 
@@ -15,7 +14,7 @@ class HTTPErrorLoggingMiddleware(HttpErrorMiddleware):
     """Overrides the default HTTP error middleware to log specific HTTP errors to the user."""
 
     @override
-    def process_spider_input(self, response: Response, spider: scrapy.Spider) -> None:
+    def process_spider_input(self, response: Response) -> None:
         match response.status:
             case status if 200 <= status < 300:
                 pass
@@ -39,4 +38,4 @@ class HTTPErrorLoggingMiddleware(HttpErrorMiddleware):
                 # )
                 pass
 
-        return super().process_spider_input(response, spider)
+        return super().process_spider_input(response)

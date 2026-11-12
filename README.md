@@ -19,57 +19,6 @@ this tool via `pip`:
 $ pip install -u matricula-online-scraper
 ```
 
-<details><summary><b>Or use a container 🐳</b></summary>
-<p>
-
-For every version, an OCI container image is built and published to GHCR.io (GitHub's own container registry).
-This is especially useful if you do not want to deal with Python environments, multiple Python versions and package managers.
-Or you could use `matricula-online-scraper` in an automated environment this way.
-The image can also be used as a disposable container, leaving no dependencies or build artifacts on your system.
-
-Simply copy and paste the following command into your terminal, it will automatically pull the latest image and run it:
-
-```bash
-$ docker run --rm -it ghcr.io/lsg551/matricula-online-scraper:latest
-```
-
-This will print the default help message and exit – but from the container and the output will be visible in your terminal.
-
-You can append any command of `matricula-online-scraper` to the end to run it directly, e.g. to list all parishes:
-
-```bash
-# docker run --rm -it <IMAGE> <SUBCOMMAND>
-$ docker run --rm -it ghcr.io/lsg551/matricula-online-scraper:latest parish list --place Paderborn -h
-```
-
-If you want to scrape data and save it to your local filesystem, you will have to create a [bind mount](https://docs.docker.com/engine/storage/bind-mounts/) via the `-v` flag though.
-Otherwise, the data would be saved inside the container, but not on your own machine.
-
-Let's say you want to scrape [this parish register](https://data.matricula-online.eu/de/deutschland/muenster/anholt-st-pankratius/KB001_1/?pg=1) and save it to your current working directory.
-
-```bash
-$ docker run -v "$(pwd):/data" --rm -it ghcr.io/lsg551/matricula-online-scraper:latest \
-    parish fetch https://data.matricula-online.eu/de/deutschland/muenster/anholt-st-pankratius/KB001_1/?pg=1 \
-    -o /data/matricula
-```
-
-It will write directly from the container to a subfolder in your current working directory (`pwd`) called `matricula`, which is mounted to `/data/` inside the container.
-
-Lastly, you can also get an interactive shell in the container
-
-```bash
-$ docker run --rm -it --entrypoint /bin/ash ghcr.io/lsg551/matricula-online-scraper:latest
-root@abc123:/app# matricula-online-scraper --version
-0.8.0
-```
-
-This will keep the container running until you exit it with `exit`, so you can run any command inside as you like.
-
-
-**NOTE**: You could also use [`podman`](https://podman.io), a drop-in replacement for `docker`, if you like. The commands are the same.
-
-</p>
-</details>
 <details><summary><b>Or build from source</b></summary>
 <p>
 
@@ -135,7 +84,7 @@ $ matricula-online-scraper --help
 <details><summary><b>(1) Download a scanned parish register (i.e. images)</b></summary>
 <p>
 
-Imagine you opened a certain parish register on Matricula and want to download the entire book or a single page.
+Imagine you opened a certain parish register on Matricula and want to download the entire book.
 Let's say you want to download the death register of [Bautzen, Germany](https://data.matricula-online.eu/en/deutschland/dresden/bautzen/),
 starting from 1661. Copy the URL of the register when you are in the image viewer, this might look like `https://data.matricula-online.eu/en/deutschland/dresden/bautzen/11/?pg=1`.
 
@@ -174,13 +123,12 @@ Run `matricula-online-scraper parish list --help` to see all available options.
 
 ---
 
-[![Cache Parishes](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml/badge.svg)](https://github.com/lsg551/matricula-online-scraper/actions/workflows/cache-parishes.yml)
 ![GitHub last commit (branch)](https://img.shields.io/github/last-commit/lsg551/matricula-online-scraper/cache%2Fparishes?path=parishes.csv.gz&label=last%20caching&cacheSeconds=43200)
 
-<b>NOTE</b>: The data only changes rarely. A GitHub workflow automatically executes this command once a week
-and pushes to [`cache/parishes`](https://github.com/lsg551/matricula-online-scraper/tree/cache/parishes).
-This has the advantage that you can download the data without having to run and waiting for the command yourself
-as well as taking some load off the Matricula servers.
+<b>NOTE</b>: The data only changes rarely. A GitHub workflow used to cache this list in
+[`cache/parishes`](https://github.com/lsg551/matricula-online-scraper/tree/cache/parishes);
+that workflow has been removed, so the cached file is no longer updated.
+You can still download it to avoid running the command yourself and to take some load off the Matricula servers.
 
 Click here to download the entire CSV: 👉 [`parishes.csv`](https://github.com/lsg551/matricula-online-scraper/raw/cache/parishes/parishes.csv.gz) 👈
 

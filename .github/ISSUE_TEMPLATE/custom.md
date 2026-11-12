@@ -18,7 +18,7 @@ _Description_
 
 **Desktop (please complete the following information):**
  - OS: [e.g. "macOS"]
- - Python version: [e.g. "Python 3.12.0"]
+ - Python version: [e.g. "Python 3.13.0"]
  - pip version: [e.g. "pip 24.0"]
  - Matricula Online Scraper version: [e.g. "v0.4.2", see `matricula-online-scraper --version`]
 

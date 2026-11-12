@@ -56,7 +56,7 @@ def fetch(
         typer.Argument(
             help=(
                 "One or more URLs to church register pages."
-                " The parameter '?pg=1' may or may not be included in the URL."
+                " Any '?pg=' parameter is ignored; the entire register is downloaded."
                 " If no URL is provided, read from STDIN."
                 # NOTE: It will block until EOF is reached or the pipeline is closed
                 # because all data must be gathered from STDIN before proceeding
@@ -76,12 +76,12 @@ def fetch(
         ),
     ] = Path.cwd() / "parish_register_images",
 ):
-    """(1) Download a church register.https://docs.astral.sh/ruff/rules/escape-sequence-in-docstring.
+    """(1) Download a church register.
 
     While all scanned parish registers can be opened in a web viewer,\
  for example the 7th page of this parish register: https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/01-02D/?pg=7,\
- it has no option to download a single page or the entire book. This command allows you\
- to do just that and download the entire book or a single page.
+ it has no option to download the entire book. This command allows you\
+ to do just that and download the entire book.
 
     \n\nExample:\n\n
     $ matricula-online-scraper parish fetch https://data.matricula-online.eu/de/oesterreich/kaernten-evAB/eisentratten/01-02D/?pg=7
@@ -146,6 +146,15 @@ def fetch(
 
         else:
             cmd_logger.info("'parish fetch' command terminated successfully.")
+
+            ignored = crawler.stats.get_value("httperror/response_ignored_count", 0)
+            if ignored:
+                usrcon.error(
+                    f"{ignored} page(s) could not be fetched (HTTP error)."
+                    " Check the URL(s) and try again."
+                )
+                raise typer.Exit(code=1)
+
             cmd_logger.debug(
                 f"Output has been written to the specified directory: {directory.resolve()}"
             )
@@ -217,7 +226,7 @@ def list_parishes(
             "-h",
             help=(
                 "Print the ouput in a human readable format. Ignores the outfile option"
-                " and writes to STDOUT instead."
+                " and writes to STDERR instead."
             ),
         ),
     ] = False,
@@ -421,7 +430,7 @@ def show(
             "-h",
             help=(
                 "Print the ouput in a human readable format. Ignores the outfile option"
-                " and writes to STDOUT instead."
+                " and writes to STDERR instead."
             ),
         ),
     ] = False,
@@ -531,6 +540,23 @@ def show(
 
         else:
             cmd_logger.info("'parish show' command terminated successfully.")
+
+            ignored = crawler.stats.get_value("httperror/response_ignored_count", 0)
+            if ignored:
+                # an (empty) output file is created before the crawl fails
+                if (
+                    outfile
+                    and not use_stdout
+                    and not human_readable
+                    and outfile.exists()
+                ):
+                    outfile.unlink()
+                usrcon.error(
+                    f"{ignored} page(s) could not be fetched (HTTP error)."
+                    " Check the URL and try again."
+                )
+                raise typer.Exit(code=1)
+
             usrcon.success("Successfully scraped the parish registers metadata.")
 
             if outfile and not use_stdout and not human_readable:
