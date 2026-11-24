@@ -103,6 +103,10 @@ def _extract_unique_id(image_url: str) -> Path:
 #     return int(match.group(1))
 
 
+IMAGE_EXTENSION_PATTERN = r"\.(?:jpe?g|png)"
+"""Case-insensitive pattern matching a Matricula image file extension."""
+
+
 def _extract_last_path_segment(image_url: str) -> str:
     """Return the last path segment of an image URL.
 
@@ -111,8 +115,10 @@ def _extract_last_path_segment(image_url: str) -> str:
     Examples:
     >>> _extract_last_path_segment("http://hosted-images.matricula-online.eu/images/matricula/DAG/MatrikenGraz-Seckau/Ardning/6014/Taufbuch/01/1786-1830/Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004.jpg")
     ... "Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004"
+    >>> _extract_last_path_segment("http://hosted-images.matricula-online.eu/images/matricula/DZG53/ADG-Matrikenportal/Digitales%20Matrikenportal/Pusarnitz/P12_037-1/P12_037-1_fol0021.JPG")
+    ... "P12_037-1_fol0021"
     """
-    match = re.search(r"/([^/]+)\.jpg$", image_url)
+    match = re.search(rf"/([^/]+){IMAGE_EXTENSION_PATTERN}$", image_url, re.IGNORECASE)
 
     if match is None:
         raise ValueError(f"Could not extract last path segment from URL {image_url}")
@@ -120,8 +126,39 @@ def _extract_last_path_segment(image_url: str) -> str:
     return match.group(1)
 
 
+def _extract_image_extension(image_url: str) -> str:
+    """Return the file extension of an image URL, preserving its case.
+
+    Examples:
+    >>> _extract_image_extension("http://hosted-images.matricula-online.eu/images/matricula/DAG/MatrikenGraz-Seckau/Ardning/6014/Taufbuch/01/1786-1830/Ardning_6014_Taufbuch_01_1786-1830___Seite__S0004.jpg")
+    ... ".jpg"
+    >>> _extract_image_extension("http://hosted-images.matricula-online.eu/images/matricula/DZG53/ADG-Matrikenportal/Digitales%20Matrikenportal/Pusarnitz/P12_037-1/P12_037-1_fol0021.JPG")
+    ... ".JPG"
+    """
+    match = re.search(rf"{IMAGE_EXTENSION_PATTERN}$", image_url, re.IGNORECASE)
+
+    if match is None:
+        # the pipeline can only store images, so the extension is only used for naming
+        return ".jpg"
+
+    return match.group(0)
+
+
 class CustomImagesPipeline(ImagesPipeline):
     """Custom image pipelines to store images in a structured way (= custom paths)."""
+
+    def item_completed(self, results, item, info):
+        """Record failed image downloads in the crawler stats.
+
+        Without this, a run where every image fails still looks successful
+        to the caller, because the item itself is scraped regardless.
+        """
+        failed = sum(1 for success, _ in results if not success)
+        if failed:
+            self.crawler.stats.inc_value("images_download/failed_count", failed)
+            logger.error(f"{failed} image(s) could not be downloaded for item {item}")
+
+        return super().item_completed(results, item, info)
 
     def file_path(
         self,
@@ -137,7 +174,7 @@ class CustomImagesPipeline(ImagesPipeline):
         # additional metadata passed to the pipeline
         if item is None or "original_url" not in item:
             logger.error(f"Could not find 'original_url' in item {item}")
-            return f"unknown/{url_hash}.jpg"
+            raise ValueError(f"Could not find 'original_url' in item {item}")
 
         original_url = item["original_url"]
 
@@ -145,8 +182,9 @@ class CustomImagesPipeline(ImagesPipeline):
             path = _extract_unique_id(original_url)
         except ValueError as e:
             logger.exception(f"Could not decompose URL {original_url}: {e}")
-            path = Path("unknown/")
+            raise
 
         page = _extract_last_path_segment(request.url)
+        extension = _extract_image_extension(request.url)
 
-        return f"{path}/{page}_{url_hash}.jpg"
+        return f"{path.as_posix()}/{page}_{url_hash}{extension}"

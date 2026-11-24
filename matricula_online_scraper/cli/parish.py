@@ -155,6 +155,23 @@ def fetch(
                 )
                 raise typer.Exit(code=1)
 
+            failed_images = crawler.stats.get_value("images_download/failed_count", 0)
+            if failed_images:
+                usrcon.error(
+                    f"{failed_images} image(s) could not be downloaded."
+                    " Run with '-v' to see why. The downloaded images may be incomplete."
+                )
+                raise typer.Exit(code=1)
+
+            # catches failures that never produce an item, e.g. an unreachable page
+            # (DNS error, network outage), which would otherwise be reported as success.
+            if not any(path.is_file() for path in directory.rglob("*")):
+                usrcon.error(
+                    "No images were downloaded."
+                    " Check your internet connection and the URL(s) and try again."
+                )
+                raise typer.Exit(code=1)
+
             cmd_logger.debug(
                 f"Output has been written to the specified directory: {directory.resolve()}"
             )
